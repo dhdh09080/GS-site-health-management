@@ -52,3 +52,7 @@
   .wx-view-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .wx-view-tabs [role=tab] { min-height: 44px; padding: 6px; font-size: 14px; white-space: normal; }
 }
+
+.wx-mobile-health .wx-poster-alert {margin:14px 0;padding:12px 14px;background:#fff1d2;border-left:5px solid #cd810d;color:#503715}
+.wx-mobile-health .wx-poster-alert h4 {margin:4px 0;color:#864200;font-size:21px}
+.wx-mobile-health .wx-poster-alert p {margin:8px 0 0;line-height:1.5;font-weight:650}

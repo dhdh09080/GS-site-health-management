@@ -459,6 +459,8 @@ The key also needs access to [기상청 기상특보 조회서비스](https://ww
 The panel displays the issued and retrieved times, affected areas, active warnings
 and preliminary warnings as supplied by KMA. Empty or failed responses offer a retry.
 
+The poster matches the active bulletin to the saved Korean site address. It recognises explicit province or municipality names and Seoul’s four KMA warning districts. Where the address cannot resolve a qualified area (such as a mountain zone), the poster directs readers to the official bulletin. The timestamp is the KMA publication time. Mobile, print and PNG use the same match.
+
 ### Seasonal health posters and weather views
 
 Weather opens a six-tab workspace: health poster, hourly chart, detailed

@@ -1,3 +1,4 @@
+import { posterNotice } from './poster-advisories.js';
 import { TIPS, WEATHER_TIPS, EXTRA_TIPS } from './weather-advice.js';
 import { posterLocale, localizeAdvice, localizeAlert, posterDateTitle, posterDateLabel, localizedHour } from './weather-poster-i18n.js';
 const finite = v => typeof v === 'number' && Number.isFinite(v);
@@ -156,8 +157,28 @@ export function buildHealthPosterSvg(fc, site = {}, mode='auto', lang='ko', opti
   const dateTitle=posterDateTitle(m.date,l.lang);
   const dateLabel=posterDateLabel(m.date,l.lang);
   const coldAlert=metricAlert('temp',m.low), heatAlert=metricAlert('feel',m.maxFeel), windAlert=metricAlert('wind',m.maxWind);
-  const banner=m.alerts.map(a=>localizeAlert(a,l.lang)).map((a,i)=>`<rect x="${72+i*378}" y="337" width="360" height="32" fill="${a.background}"/><rect x="${72+i*378}" y="337" width="4" height="32" fill="${a.color}"/><text x="${84+i*378}" y="360" fill="${a.color}" font-size="${fit(a.label+' · '+a.threshold,l.lang==='my'?16:19,330,650)}" font-weight="650">${esc(a.label)} · ${esc(a.threshold)}</text>`).join('');
-  const chart=weatherChartSvg(m.hours,{width:1116,height:276,left:60,right:24,colors:['#242628',accent,'#a4adb3'],fontScale:1.25,lang:l.lang}).replace('<svg ', '<svg x="72" y="724" ');
+  const notice=posterNotice(options.advisory,l.lang);
+  const active=Boolean(notice.title);
+  const heading=l.lang==='ko'?'오늘의 현장 날씨':l.today;
+  const alertStrip=active ? `<rect x="72" y="246" width="1116" height="184" fill="#fff1d2"/>
+    <rect x="72" y="246" width="8" height="184" fill="#cd810d"/>
+    <text x="98" y="279" font-size="22" font-weight="650" fill="#704108">${esc(notice.heading)}</text>
+    <text x="98" y="331" fill="#864200" font-weight="700" font-size="${fit(notice.title,49,1060,700)}">${esc(notice.title)}</text>
+    <text x="98" y="367" font-size="22" fill="#513d27">${esc(notice.time)}</text>
+    <text x="98" y="408" font-size="${fit(notice.action,31,1060,650)}" font-weight="650" fill="#202224">${esc(notice.action)}</text>` : '';
+  const metrics=[
+    [notice.windLabel,riskMetric('wind',m.maxWind,' m/s'),windAlert?.color,72,310],
+    [l.high,riskMetric('temp',m.high,'°C'),null,408,232],
+    [l.low,riskMetric('temp',m.low,'°C'),coldAlert?.color,668,232],
+    [l.feelHigh,riskMetric('feel',m.maxFeel,'°C'),heatAlert?.color||accent,928,260]
+  ];
+  const metricTop=active?538:376;
+  const metricRow=metrics.map(([label,val,color,x,width],i)=>`
+    ${i?`<line x1="${x-14}" x2="${x-14}" y1="${metricTop-27}" y2="${metricTop+73}" stroke="#dce0e2"/>`:''}
+    <text x="${x}" y="${metricTop}" font-size="${fit(label,24,width,600)}" fill="#4c5357" font-weight="600">${esc(label)}</text>
+    <text x="${x}" y="${metricTop+76}" font-size="${fit(val,i?58:76,width,700)}" fill="${color||'#202224'}" font-weight="700">${esc(val)}</text>`).join('');
+  const banner=m.alerts.map(a=>localizeAlert(a,l.lang)).map((a,i)=>`<rect x="${72+i*378}" y="${active?440:263}" width="360" height="32" fill="${a.background}"/><rect x="${72+i*378}" y="${active?440:263}" width="4" height="32" fill="${a.color}"/><text x="${84+i*378}" y="${active?463:286}" fill="${a.color}" font-size="${fit(a.label+' · '+a.threshold,l.lang==='my'?16:19,330,650)}" font-weight="650">${esc(a.label)} · ${esc(a.threshold)}</text>`).join('');
+  const chart=weatherChartSvg(m.hours,{width:1116,height:active?276:420,left:60,right:24,colors:['#242628',accent,'#a4adb3'],fontScale:1.25,lang:l.lang}).replace('<svg ', `<svg x="72" y="${active?724:580}" `);
   const table=(hours,y)=>{
     const left=72,labelWidth=160,colWidth=956/7;
     const rows=[[l.temp+' °C','temp','#242628'],[l.feel+' °C','feel',accent],[l.wind+' m/s','wind','#626970']];
@@ -177,40 +198,36 @@ export function buildHealthPosterSvg(fc, site = {}, mode='auto', lang='ko', opti
   <text x="72" y="79" fill="#242628" font-size="22" font-weight="600">${esc(l.header)}</text>
   <text x="1188" y="79" text-anchor="end" fill="#626970" font-size="${fit(dateLabel,22,550)}">${esc(dateLabel)}</text>
   <line x1="72" x2="1188" y1="105" y2="105" stroke="#242628" stroke-width="2"/>
-  <text x="72" y="181" fill="#202224" font-size="${fit(siteName,68,1116,700)}" font-weight="700" letter-spacing="-1">${esc(siteName)}</text>
-  <text x="72" y="255" fill="#202224" font-size="${fit(dateTitle,l.lang==='my'?54:66,1116,650)}" font-weight="650" letter-spacing="${l.lang==='ko'?'-2':'0'}">${esc(dateTitle)}</text>
-  <text x="72" y="310" fill="#747a7e" font-size="${fit(String(site.address||fc.address||''),21,1116)}">${esc(String(site.address||fc.address||''))}</text>
-  ${banner}
-  <text x="72" y="400" fill="#626970" font-size="23">${l.high}</text>
-  <text x="660" y="400" fill="#626970" font-size="23">${l.low}</text>
-  <text x="72" y="544" fill="#202224" font-size="160" font-weight="600" letter-spacing="-8">${riskMetric('temp',m.high,'°')}</text>
-  <text x="660" y="544" fill="${coldAlert?.color||'#747a7e'}" font-size="160" font-weight="500" letter-spacing="-8">${riskMetric('temp',m.low,'°')}</text>
-  <text x="72" y="581" fill="#626970" font-size="${fit(l.feelHigh,21,500)}">${esc(l.feelHigh)}</text>
-  <text x="72" y="617" fill="${heatAlert?.color||accent}" font-size="31" font-weight="600">${riskMetric('feel',m.maxFeel,'°C')}</text>
-  <text x="660" y="581" fill="#626970" font-size="${fit(l.windHigh,21,500)}">${esc(l.windHigh)}</text>
-  <text x="660" y="617" fill="${windAlert?.color||'#242628'}" font-size="31" font-weight="600">${riskMetric('wind',m.maxWind,' m/s')}</text>
+  <text x="72" y="177" fill="#202224" font-size="${fit(heading,66,1116,700)}" font-weight="700">${esc(heading)}</text>
+  <text x="72" y="224" fill="#33383c" font-size="${fit(siteName,31,514,650)}" font-weight="650">${esc(siteName)}</text>
+  <text x="604" y="224" fill="#626970" font-size="${fit(site.address||fc.address||'',22,584)}">${esc(site.address||fc.address||'')}</text>
+  ${alertStrip}${banner}
+  <text x="72" y="${metricTop-47}" fill="#626970" font-size="20">${esc(notice.period)}</text>
+  ${metricRow}
+  <g transform="translate(0,${active?0:-144})">
   <line x1="72" x2="1188" y1="636" y2="636" stroke="#dce0e2"/>
   <text x="72" y="684" fill="#242628" font-size="29" font-weight="650">${l.hourly}</text>
-  <text x="72" y="714" fill="#747a7e" font-size="${fit(l.period,18,1116)}">${esc(l.period)}</text>
   <line x1="770" x2="800" y1="678" y2="678" stroke="#242628" stroke-width="4"/><text x="811" y="685" fill="#626970" font-size="20">${l.temp}</text>
   <line x1="887" x2="917" y1="678" y2="678" stroke="${accent}" stroke-width="4" stroke-dasharray="8 5"/><text x="928" y="685" fill="#626970" font-size="20">${l.feel}</text>
   <rect x="1015" y="667" width="15" height="19" fill="#a4adb3"/><text x="1042" y="685" fill="#626970" font-size="${l.lang==='my'?16:20}">${l.wind}</text>
+  </g>
   ${chart}
   ${table(m.hours.filter(h=>h.hour<=12),1036)}
   ${table(m.hours.filter(h=>h.hour>=13),1220)}
   <line x1="72" x2="1188" y1="1412" y2="1412" stroke="#dce0e2"/>
-  <text x="72" y="1465" fill="#242628" font-size="29" font-weight="650">${l.tips}</text>
-  ${localizeAdvice(m.tips,l.lang).map((tip,i)=>{
+  <text x="72" y="1465" fill="#242628" font-size="29" font-weight="650">${notice.tipsLabel}</text>
+  ${[...(notice.tip?[notice.tip]:[]),...localizeAdvice(m.tips,l.lang)].slice(0,3).map((tip,i)=>{
     let size=l.lang==='my'?24:26;
     let lines=wrapPosterAdvice(tip,l.locale,size,1056,measure);
     while(lines.length>2&&size>16){size-=1;lines=wrapPosterAdvice(tip,l.locale,size,1056,measure);}
     const y=1498+i*62;
     return `<text x="72" y="${y}" fill="${accent}" font-size="23" font-weight="650">0${i+1}</text>${lines.map((line,j)=>`<text x="132" y="${y+j*31}" fill="#242628" font-size="${size}" font-weight="400">${esc(line)}</text>`).join('')}`;
   }).join('')}
+  ${notice.note?`<text x="72" y="1688" font-size="${fit(notice.note,17,1100)}" fill="#724b13">${esc(notice.note)}</text>`:''}
   <line x1="72" x2="1188" y1="1663" y2="1663" stroke="#242628" stroke-width="1.5"/>
-  <text x="72" y="1700" fill="#747a7e" font-size="${fit(fc.source==='preview'?l.preview:l.source,18,1116)}">${esc(fc.source==='preview'?l.preview:l.source)}</text>
-  <text x="72" y="1730" fill="#747a7e" font-size="${fit(l.note,18,900)}">${esc(l.note)}</text>
-  <text x="1188" y="1730" text-anchor="end" fill="#747a7e" font-size="18">A4 · 210 × 297 mm</text>
+  <text x="72" y="1715" fill="#747a7e" font-size="${fit(fc.source==='preview'?l.preview:l.source,18,1116)}">${esc(fc.source==='preview'?l.preview:l.source)}</text>
+  <text x="72" y="1748" fill="#747a7e" font-size="${fit(l.note,18,900)}">${esc(l.note)}</text>
+  <text x="1188" y="1748" text-anchor="end" fill="#747a7e" font-size="18">A4 · 210 × 297 mm</text>
   </svg>`;
 }
 

@@ -1,3 +1,4 @@
+import { siteAdvisory, posterNotice } from './lib/poster-advisories.js';
 import { contractorTableHtml, installContractorEditor } from './lib/contractor-manager.js';
 import {msdsStatusSwitch} from './lib/msds-status-switch.js';
 import { installMobileExperience } from './lib/mobile-experience.js';
@@ -1039,6 +1040,11 @@ function resetWorkspaceScopedState() {
   viewingPhotoId = null;
 
   wxForecast = null;
+  wxForecastPending = null;
+  wxViewKey = '';
+  wxViewLoaded.clear();
+  ++wxPageRequest;
+  ++wxPosterRenderRequest;
   wxPosterCache = {};
   wxPosterSvg = '';
   if (wxPosterObjectUrl) URL.revokeObjectURL(wxPosterObjectUrl);
@@ -9891,17 +9897,36 @@ function renderWxSiteSummary() {
   return ready;
 }
 
+async function fetchPosterAdvisory(site) {
+  if (getDevPreviewPage()) {
+    const issuedAt = kstDate() + 'T06:00:00+09:00';
+    const result = {report:{issuedAt, active:'강풍주의보 : 서울특별시(서울동북권)'}};
+    return {...siteAdvisory(result,site.address), example:true};
+  }
+  try {
+    const {result} = await invokeEdgeJson('site-weather', {action:'advisories'});
+    return siteAdvisory(result,site.address);
+  } catch {
+    return {state:'unavailable'};
+  }
+}
+
 async function renderWxSitePoster(fc) {
   const request = ++wxPosterRenderRequest;
   const site = {...currentWS}, lang = wxPosterLanguage, mode = wxSeasonMode;
   const font = await loadPosterFont(lang);
   if (request !== wxPosterRenderRequest || fc !== wxForecast) return;
-  wxPosterSvg = buildHealthPosterSvg(fc, site, mode, lang, font);
+  wxPosterSvg = buildHealthPosterSvg(fc, site, mode, lang, {...font,advisory:fc.advisory});
   if (wxPosterObjectUrl) URL.revokeObjectURL(wxPosterObjectUrl);
   wxPosterObjectUrl = URL.createObjectURL(new Blob([wxPosterSvg], {type:'image/svg+xml;charset=utf-8'}));
   const model = posterModel(fc, mode), l = posterLocale(lang);
+  const notice = posterNotice(fc.advisory,lang);
+  const advisoryHtml = notice.title ? `<section class="wx-poster-alert"><small>${escapeHtml(notice.heading)}</small>
+    <h4>${escapeHtml(notice.title)}</h4><small>${escapeHtml(notice.time)}</small><p>${escapeHtml(notice.action)}</p></section>` : '';
+  const noticeNote = notice.note ? `<p class="wx-detail-note">${escapeHtml(notice.note)}</p>` : '';
+  const tips = [...(notice.tip?[notice.tip]:[]),...localizeAdvice(model.tips,lang)].slice(0,3);
   document.getElementById('wxLatestPoster').innerHTML =
-    `<div class="wx-mobile-health" lang="${lang}" style="font-family:'${l.font}',sans-serif"><h3>${escapeHtml(site.name || l.site)}</h3><p>${escapeHtml(posterDateTitle(model.date,lang))}</p>${model.alerts.map(a=>localizeAlert(a,lang)).map(a=>`<p style="color:${a.color}">${escapeHtml(a.label)} · ${escapeHtml(a.threshold)}</p>`).join('')}<div class="wx-mobile-health-metrics"><div><small>${escapeHtml(l.high)} / ${escapeHtml(l.low)}</small><b>${riskMetric('temp',model.high,'°')} / ${riskMetric('temp',model.low,'°')}</b></div><div><small>${escapeHtml(l.feelHigh)}</small><b>${riskMetric('feel',model.maxFeel,'°C')}</b></div><div><small>${escapeHtml(l.windHigh)}</small><b>${riskMetric('wind',model.maxWind,' m/s')}</b></div></div><h4>${escapeHtml(l.tips)}</h4><ol>${localizeAdvice(model.tips,lang).map(tip=>`<li>${escapeHtml(tip)}</li>`).join('')}</ol></div><a class="wx-poster-original" href="${wxPosterObjectUrl}" target="_blank" rel="noopener" aria-label="포스터 원본 크게 보기"><img class="wx-site-poster" src="${wxPosterObjectUrl}" alt="${escapeHtml(site.name || l.site)} · ${escapeHtml(posterDateTitle(model.date,lang))}" lang="${lang}"></a><p class="wx-detail-note"><a class="wx-poster-open-link" href="${wxPosterObjectUrl}" target="_blank" rel="noopener">포스터 원본 크게 보기 ↗</a> · PNG로 저장해 현장에 게시하거나 공유하세요.</p>`;
+    `<div class="wx-mobile-health" lang="${lang}" style="font-family:'${l.font}',sans-serif"><h3>${escapeHtml(site.name || l.site)}</h3><p>${escapeHtml(posterDateTitle(model.date,lang))}</p>${advisoryHtml}${noticeNote}${model.alerts.map(a=>localizeAlert(a,lang)).map(a=>`<p style="color:${a.color}">${escapeHtml(a.label)} · ${escapeHtml(a.threshold)}</p>`).join('')}<div class="wx-mobile-health-metrics"><div><small>${escapeHtml(notice.windLabel)}</small><b>${riskMetric('wind',model.maxWind,' m/s')}</b></div><div><small>${escapeHtml(l.high)} / ${escapeHtml(l.low)}</small><b>${riskMetric('temp',model.high,'°')} / ${riskMetric('temp',model.low,'°')}</b></div><div><small>${escapeHtml(l.feelHigh)}</small><b>${riskMetric('feel',model.maxFeel,'°C')}</b></div></div><h4>${escapeHtml(notice.tipsLabel)}</h4><ol>${tips.map(tip=>`<li>${escapeHtml(tip)}</li>`).join('')}</ol></div><a class="wx-poster-original" href="${wxPosterObjectUrl}" target="_blank" rel="noopener" aria-label="포스터 원본 크게 보기"><img class="wx-site-poster" src="${wxPosterObjectUrl}" alt="${escapeHtml(site.name || l.site)} · ${escapeHtml(posterDateTitle(model.date,lang))}" lang="${lang}"></a><p class="wx-detail-note"><a class="wx-poster-open-link" href="${wxPosterObjectUrl}" target="_blank" rel="noopener">포스터 원본 크게 보기 ↗</a> · PNG로 저장해 현장에 게시하거나 공유하세요.</p>`;
   document.getElementById('wxDownloadPosterBtn').style.display = 'inline-flex';
 }
 window.setWxPosterLanguage = async function(lang) {
@@ -9980,9 +10005,11 @@ async function loadDashWeather() {
   if (!card || !body) return;
   const head = `<div class="dash-section-header" style="margin-bottom:8px;"><div class="dash-section-title">☀️ 오늘 체감온도 예보</div><span style="font-size:12px;color:var(--text3);">혹서기 날씨 →</span></div>`;
   try {
-    if (!wxForecast) wxForecast = await fetchWxForecast();
+    const workspaceId = currentWS?.id;
+    const forecast = wxForecast || await fetchWxForecast();
+    if (workspaceId !== currentWS?.id) return;
     card.style.display = 'block';
-    body.innerHTML = head + wxHourlyHtml(wxForecast);
+    body.innerHTML = head + wxHourlyHtml(forecast);
   } catch {
     card.style.display = 'none';
   }
@@ -10032,7 +10059,16 @@ window.loadWeatherPage = async function (force) {
   }
   const ready = renderWxSiteSummary();
   const view = wxWeatherView;
-  if (wxViewLoaded.has(view)) return;
+  const posterDue = view === 'poster' && wxForecast && Date.now() >= wxForecast.advisoryRefreshAt;
+  if (wxViewLoaded.has(view) && !posterDue) return;
+  if (posterDue) {
+    wxForecastPending = null;
+    wxForecast = null;
+    wxPosterSvg = '';
+    document.getElementById('wxDownloadPosterBtn').style.display = 'none';
+    wxViewLoaded.delete('poster');
+    wxViewLoaded.delete('hourly');
+  }
   const options = { workspace: currentWS, invoke: invokeEdgeJson, preview: !!getDevPreviewPage(), weatherIcon: gsWeatherIcon, weatherLabel: gsWeatherLabel };
   if (view === 'advisories') { await loadWeatherAdvisories(options); return; }
   if (view === 'forecast') { await loadWeatherDetail(options); if (key === wxViewKey) wxViewLoaded.add(view); return; }
@@ -10051,11 +10087,17 @@ window.loadWeatherPage = async function (force) {
     el.innerHTML = '<div class="mp-empty" role="status">시간별 그래프를 준비하고 있습니다…</div>';
   }
   try {
-    if (!wxForecastPending) wxForecastPending = wxForecast ? Promise.resolve(wxForecast) : fetchWxForecast();
+    if (!wxForecastPending) {
+      const site = {...currentWS};
+      wxForecastPending = Promise.all([wxForecast || fetchWxForecast(site), fetchPosterAdvisory(site)])
+        .then(([forecast, advisory]) => ({...forecast, advisory,
+          advisoryRefreshAt: Date.now() + (advisory.state === 'unavailable' ? 60000 : 300000)}));
+    }
     const forecast = await wxForecastPending;
     if (key !== wxViewKey || token !== wxPageRequest) return;
     wxForecast = forecast;
     await renderWxSitePoster(forecast);
+    if (key !== wxViewKey || token !== wxPageRequest) return;
     el.innerHTML = wxHourlyHtml(forecast);
     wxViewLoaded.add('poster');
     wxViewLoaded.add('hourly');
@@ -10071,7 +10113,9 @@ window.loadWeatherPage = async function (force) {
 
 // A screen left open overnight gets a new forecast and new daily health guidance.
 function refreshWeatherDate() {
-  if (document.getElementById('page-weather')?.classList.contains('active') && wxViewKey && !wxViewKey.endsWith(kstDate())) loadWeatherPage(true);
+  if (document.hidden || !document.getElementById('page-weather')?.classList.contains('active')) return;
+  if (wxViewKey && !wxViewKey.endsWith(kstDate())) loadWeatherPage(true);
+  else if (wxWeatherView === 'poster' && Date.now() >= wxForecast?.advisoryRefreshAt) loadWeatherPage();
 }
 setInterval(refreshWeatherDate, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshWeatherDate(); });
