@@ -90,3 +90,51 @@ body:has(#moreSheet.open) { overflow: hidden; }
 .directory-share-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.directory-share-eyebrow{font-size:11px;font-weight:650;color:var(--text2);letter-spacing:.04em}.directory-share-heading h2{font-size:20px;line-height:1.4;margin:6px 0 0}.directory-share-badge{white-space:nowrap;border-radius:99px;background:var(--surface2);color:var(--text2);padding:6px 12px;font-size:12px;font-weight:650}.directory-share-badge.is-active{background:#e8f6ed;color:#20643c}
 .directory-share-description{font-size:13px;color:var(--text2);line-height:1.7;margin:14px 0 18px}.directory-share-link{padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);min-width:0}.directory-share-site{font-size:16px;font-weight:650;margin-bottom:16px;overflow-wrap:anywhere}.directory-share-link label{display:block;font-size:12px;color:var(--text2);margin-bottom:7px}.directory-share-link input{display:block;box-sizing:border-box;width:100%;min-width:0;height:44px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px}.directory-share-primary{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.directory-share-primary>.btn{min-height:46px;padding:12px 20px;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.directory-share-expiry{font-size:12px;color:var(--text2);margin:16px 0 0}.directory-share-expiry strong{color:var(--text);margin-left:8px}.directory-share-empty{padding:20px;border:1px dashed var(--border);border-radius:10px;font-size:13px;color:var(--text2);line-height:1.7}.directory-share-footnote{font-size:12px;color:var(--text2);line-height:1.7;margin:16px 0 0}.site-directory-actions{padding-top:16px;margin-top:4px}.site-directory-actions>.btn{min-height:42px}
 @media(max-width:640px){.site-directory-card{padding:18px}.directory-share-heading h2{font-size:18px}.directory-share-link{padding:16px}.directory-share-primary{flex-direction:column}.directory-share-primary>.btn{width:100%;box-sizing:border-box}.site-directory-actions>.btn{flex:1 1 130px}.directory-share-footnote{font-size:11px}}
+
+/* Field documents and their outstanding actions share a single reading order. */
+.field-inbox {
+  padding: clamp(18px, 2vw, 28px);
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+}
+.field-section-head, .field-company, .field-counts button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-section-head h1 { margin: 0; font-size: clamp(20px, 2vw, 28px); }
+.field-section-head .btn { flex-shrink: 0; }
+#gsPreviewLabel { color: var(--text2); font-size: 13px; margin: 0 0 4px; }
+#gsPreviewLabel:empty { display: none; }
+.field-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.field-counts button {
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  padding: 12px 14px;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+.field-counts strong { color: var(--ok-dark); white-space: nowrap; }
+#fieldPendingList { line-height: 1.6; font-size: 15px; color: var(--text2); }
+.field-company { padding: 9px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.field-company strong { color: var(--text); overflow-wrap: anywhere; }
+.page .page-subtitle, .page .form-input, .page .filter-select { font-size: 15px; }
+.page .btn, .gs-tabs [role="tab"] { font-size: 15px; min-height: 40px; }
+.page .con-company-name, .page .con-management-table td { overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+  .field-counts button { flex-wrap: wrap; justify-content: flex-start; padding: 10px; }
+  .field-company { display: grid; gap: 2px; }
+}
+.detail-val { min-width: 0; overflow-wrap: anywhere; }
+.field-company-link { font: inherit; font-weight: 650; color: var(--text); background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 4px; }
+.company-pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 16px; }
+.modal-backdrop:not(.open) { visibility: hidden; }
+
+#receiptError { color: var(--danger); font-size: 15px; }
+#receiptError:empty { display: none; }

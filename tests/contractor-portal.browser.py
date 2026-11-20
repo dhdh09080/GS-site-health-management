@@ -2,7 +2,9 @@
 Uses synthetic fixtures; never writes to production storage or customer records.
 """
 import asyncio, json, os
+from urllib.parse import urlsplit
 from pathlib import Path
+from print_fixture import keep_print_document
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get('BASE_URL', 'http://localhost:3003')
@@ -23,13 +25,17 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(executable_path='/usr/bin/chromium', args=['--no-sandbox'])
         page = await browser.new_page(viewport=dict(width=1440,height=1000))
+        await keep_print_document(page)
         errors=[]
         page.on('pageerror', lambda e: errors.append(str(e)))
         uploads=[];status_fail=False
+        backend_origin = None
         async def api(route):
-            nonlocal status_fail
+            nonlocal status_fail, backend_origin
             req=route.request; url=req.url
             if 'get_contractor_portal' in url:
+                parsed = urlsplit(url)
+                backend_origin = f'{parsed.scheme}://{parsed.netloc}'
                 data=json.loads(req.post_data)
                 if data['p_token']=='invalid-token-0000':
                     return await route.fulfill(status=400,json=dict(message='invalid or expired upload token'))
@@ -74,7 +80,7 @@ async def main():
         await page.evaluate('refreshPortalRecords()')
 
         assert await page.locator('#uploadExistingList .portal-msds-product').first.inner_text()=='테스트 도료'
-        assert await page.locator('#uploadExistingList td:last-child a').get_attribute('href')==f'https://zobflntvegpunktphauf.supabase.co/functions/v1/msds-view?id={RID}'
+        assert await page.locator('#uploadExistingList td:last-child a').get_attribute('href')==f'{backend_origin}/functions/v1/msds-view?id={RID}'
         await page.locator('#uploadExistingSearch').fill('대기.pdf')
         assert await page.locator('#uploadExistingList .document-row').count()==1
         assert await page.locator('#uploadExistingList .portal-msds-product').inner_text()=='<미분석 제품>'
@@ -97,7 +103,7 @@ async def main():
         assert await page.title()=='서울 신축현장 안전건설 관리페이지'
         assert not await page.locator('#loadingView').is_visible()
         assert await page.locator('#portalRecordList .document-row').count()==2
-        assert await page.locator('#portalRecordList td:last-child a').get_attribute('href')==f'https://zobflntvegpunktphauf.supabase.co/functions/v1/msds-view?id={RID}'
+        assert await page.locator('#portalRecordList td:last-child a').get_attribute('href')==f'{backend_origin}/functions/v1/msds-view?id={RID}'
         await page.locator('#portalSearch').fill('존재하지않는자료')
         assert await page.locator('#portalRecordList .document-row').count()==0
         await page.locator('#portalSearch').fill('')

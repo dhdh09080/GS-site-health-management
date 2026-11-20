@@ -149,7 +149,7 @@
 <span>GS</span>
 <div>
                 보건 현장관리
-                <small>HEALTH &amp; SITE</small>
+
 </div>
 </div>
 <div class="sidebar-back">← 현장 목록</div>
@@ -263,23 +263,22 @@
 <div class="page-title" id="homeTitle">현장 홈</div>
 <div class="page-subtitle" id="homeDate"></div>
 </div>
-<span class="gs-context">GS HEALTH &amp; SITE</span>
 </div>
 <div class="content-scroll gs-home">
-<section class="gs-welcome">
-<div class="gs-eyebrow">매일의 건강한 현장을 위해</div>
-<h1 id="gsGreeting">오늘 하루도 좋은 하루 되세요!</h1>
-<p>날씨를 살피고, 오늘 현장에 필요한 보건 관리를 시작하세요.</p>
-<div class="gs-welcome-bottom">
-<span id="gsSiteName"></span>
-<span id="gsPreviewLabel"></span>
+<section class="field-inbox" aria-labelledby="gsGreeting">
+<div class="field-section-head"><div><p id="gsPreviewLabel"></p><h1 id="gsGreeting">협력사 서류 현황</h1></div>
+<button class="btn btn-secondary" onclick="openFieldCompanies('all')">전체 업체 보기</button></div>
+<div class="field-counts">
+<button onclick="openFieldCompanies('missing-msds')">MSDS 미수령 <strong id="fieldMsdsCount">—</strong></button>
+<button onclick="openFieldCompanies('missing-license')">등록증 미제출 <strong id="fieldLicenseCount">—</strong></button>
 </div>
+<div id="fieldPendingList" aria-live="polite">서류 현황을 불러오는 중입니다.</div>
 </section>
 <div class="gs-home-grid">
 <section class="card gs-week-card">
 <div class="gs-section-head">
 <div>
-<div class="gs-eyebrow">WEEKLY WEATHER</div>
+
 <h2>이번 주 현장 날씨</h2>
 </div>
 <button class="btn btn-outline btn-sm" onclick="showPage('weather')">
@@ -290,7 +289,7 @@
 <p class="gs-weather-source" id="gsWeatherSource"></p>
 </section>
 <section class="card gs-season-card">
-<div class="gs-eyebrow">SEASONAL CARE</div>
+
 <h2 id="gsSeasonTitle">계절별 보건 관리</h2>
 <div id="gsSeasonChecks"></div>
 </section>
@@ -391,6 +390,7 @@
 <div class="page-subtitle" id="msdsSubtitle">총 0건</div>
 </div>
 <div class="header-actions msds-header-actions">
+<button class="btn btn-secondary" id="msdsReturn" hidden>목록으로 돌아가기</button>
 <button class="btn btn-secondary msds-print-btn" onclick="printMsdsList()">관리대장 인쇄</button>
 <button class="btn btn-primary" id="msdsRegisterBtn" onclick="openMsdsRegister()">
                   + 등록
@@ -433,7 +433,7 @@
 <div class="filter-bar">
 <div class="search-wrap">
 <span class="search-icon">🔍</span>
-<input id="searchInput" oninput="renderMsdsTable()" placeholder="제품명, 공급업체, CAS 검색..." type="text"/>
+<input id="searchInput" oninput="renderMsdsTable()" aria-label="MSDS 검색" placeholder="제품명, 파일명, 공급업체, CAS 검색" type="text"/>
 </div>
 <select class="filter-select" id="filterWorkType" onchange="renderMsdsTable()">
 <option value="">전체 공종</option>
@@ -495,7 +495,7 @@
   <div class="content-scroll">
     <div class="warn-layout">
       <section class="warn-left wb-panel" aria-labelledby="wbMaterialHeading">
-        <div class="wb-pick-heading"><div class="wb-eyebrow">SELECT MATERIALS</div><h2 id="wbMaterialHeading">물질 선택</h2><p>체크박스로 인쇄할 물질을 선택하세요.</p></div>
+        <div class="wb-pick-heading"><h2 id="wbMaterialHeading">물질 선택</h2><p>체크박스로 인쇄할 물질을 선택하세요.</p></div>
         <div class="wb-filters">
           <label class="wb-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input class="form-input" id="warnSearchInput" oninput="renderWarnPickList()" placeholder="물질명, CAS 번호, 공급업체 검색" aria-label="물질 검색" type="search"/></label>
           <div class="form-field"><label class="form-label" for="warnFilterContractorSearch">협력사</label><div class="contractor-search-row"><input class="form-input" id="warnFilterContractorSearch" placeholder="전체 협력사 · 검색해서 선택"/></div><select class="form-input" id="warnFilterContractor" onchange="renderWarnPickList()"><option value="">전체 협력사</option></select></div>
@@ -1120,13 +1120,13 @@
 </div>
 </div>
 <div id="wxPanel-forecast" class="wx-view-panel" role="tabpanel" aria-labelledby="wxView-forecast" tabindex="0" hidden><section class="card" style="margin-bottom:14px" aria-labelledby="wxDetailTitle">
-<div class="gs-section-head"><div><div class="gs-eyebrow">SITE WEATHER</div><h2 id="wxDetailTitle">현장 상세 날씨</h2></div><a class="btn btn-outline btn-sm" href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener noreferrer">기상청 날씨누리 ↗</a></div>
+<div class="gs-section-head"><div><h2 id="wxDetailTitle">현장 상세 날씨</h2></div><a class="btn btn-outline btn-sm" href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener noreferrer">기상청 날씨누리 ↗</a></div>
 <p class="wx-detail-note">앞으로 30일을 살펴보세요. 기상청 단기예보와 Open-Meteo 보조 예보(최대 16일)를 구분해 표시합니다. 1개월 전망은 주별 기온·강수 경향으로, 30일 전체의 날짜별 상세 수치는 제공되지 않습니다.</p>
 <div id="wxDetailBody" aria-busy="false"><p class="wx-detail-message">상세 예보를 불러오는 중입니다…</p></div>
 </section>
 </div>
 <div id="wxPanel-observations" class="wx-view-panel" role="tabpanel" aria-labelledby="wxView-observations" tabindex="0" hidden><section class="card" style="margin-bottom:14px" aria-labelledby="wxObservationTitle">
-<div class="gs-section-head"><div><div class="gs-eyebrow">WEATHER OBSERVATIONS</div><h2 id="wxObservationTitle">주변 관측소의 실제 날씨</h2></div></div>
+<div class="gs-section-head"><div><h2 id="wxObservationTitle">주변 관측소의 실제 날씨</h2></div></div>
 <p class="wx-detail-note">현장과 가까운 기상청 AWS·ASOS 관측소 자료입니다. 현장 직접 측정값과 차이가 있을 수 있습니다. 강수확률과 미래 날씨는 상세 예보 탭을 확인하세요.</p>
 <div id="wxObservationBody" aria-live="polite"><p class="wx-detail-message">관측자료를 불러오는 중입니다…</p></div>
 </section>
@@ -1628,7 +1628,7 @@
 </div>
 <div class="contractor-toolbar">
 <div class="contractor-search-main">
-<input class="form-input" id="conMgrSearch" oninput="renderContractorTags()" aria-label="협력사·담당자·전화번호 검색" placeholder="업체명, 담당자, 전화번호 검색" type="search"/>
+<input class="form-input" id="conMgrSearch" aria-label="협력사·담당자·전화번호 검색" placeholder="업체명, 담당자, 전화번호 검색" type="search"/>
 <button class="btn btn-primary" id="contractorAddToggleBtn" onclick="toggleNewContractorForm()">
                       + 협력사 등록
                     </button>
@@ -1661,6 +1661,11 @@
 </div>
 </div>
 <div class="pmx-actions" style="margin-bottom:16px"><button type="button" class="btn btn-secondary" onclick="openPmxPartners()">PMX 협력사 가져오기</button></div><div id="conMgrList"></div>
+<nav class="company-pager" id="companyPager" aria-label="협력사 목록 페이지" hidden>
+<button type="button" class="btn btn-secondary" id="companyPrev">이전 페이지</button>
+<span id="companyPageStatus" role="status"></span>
+<button type="button" class="btn btn-secondary" id="companyNext">다음 페이지</button>
+</nav>
 </div>
 <div class="card" id="businessLicenseCard">
 <div class="card-title" style="
@@ -2835,12 +2840,12 @@
             ✕
           </button>
 </div>
-<div class="modal-body" id="receiptBody"></div>
+<div class="modal-body"><div id="receiptBody"></div><p id="receiptError" role="alert"></p></div>
 <div class="modal-footer">
 <button class="btn btn-secondary" onclick="closeModal('receiptModal')">
             취소
           </button>
-<button class="btn btn-primary" onclick="saveReceipt()">저장</button>
+<button class="btn btn-primary" id="receiptSave" onclick="saveReceipt()">저장</button>
 </div>
 </div>
 </div>

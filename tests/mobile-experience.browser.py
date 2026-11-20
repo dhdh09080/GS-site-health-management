@@ -30,7 +30,7 @@ async def main():
     assert await page.locator('#filterStatus').is_hidden()
     await page.locator('#msdsFilters > summary').click()
     await page.locator('#filterStatus').select_option('ended')
-    assert '등록된 MSDS가 없습니다' in await page.locator('#msdsTableBody').inner_text()
+    assert '조회 조건에 맞는 MSDS가 없습니다' in await page.locator('#msdsTableBody').inner_text()
     await page.locator('#filterStatus').select_option('')
     await page.locator('#msdsFilters > summary').click()
     await rows.first.locator('.msds-row-more > summary').click()

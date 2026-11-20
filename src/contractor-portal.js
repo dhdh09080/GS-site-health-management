@@ -74,14 +74,15 @@ async function proceedToUploadView(data) {
     licenseData = data.license;
     portalRecords = data.records || [];
     document.title = `${wsData.name} ${contractorData.name} 관리페이지`;
-    document.getElementById('headerWS').textContent = document.title;
-    document.getElementById('headerDesc').textContent = '협력사 안전보건 자료를 한곳에서 관리하세요';
+    document.getElementById('headerWS').textContent = contractorData.name;
+    document.getElementById('headerDesc').textContent = wsData.name;
     document.getElementById('contractorPickView').style.display = 'none';
     document.getElementById('portalView').hidden = false;
     const allowMsds = !publicLinkData || publicLinkData.allow_msds;
     const allowLicense = !publicLinkData || publicLinkData.allow_license;
     document.querySelectorAll('[data-msds]').forEach(el => el.hidden = !allowMsds);
     document.getElementById('licenseTab').hidden = !allowLicense;
+    document.getElementById('licenseStat').hidden = !allowLicense;
     renderWorkTypes(); renderLicenseCard(); renderPortalRecords();
     workspace.mount({allowMsds,allowLicense});
     portalMobile ||= installPortalMobileExperience();
@@ -98,6 +99,10 @@ window.switchPortalPanel = function (panel) {
   if (!['dashboard','contacts','records','upload','warnings','license','hazard','worker-changes','manager-signs'].includes(panel)) panel = 'dashboard';
   if (publicLinkData && ((['records','upload','warnings','hazard'].includes(panel) && !publicLinkData.allow_msds) || (panel === 'license' && !publicLinkData.allow_license))) panel = 'dashboard';
   document.querySelectorAll('[data-portal-panel]').forEach(el => el.hidden = el.dataset.portalPanel !== panel);
+  const url = new URL(location.href);
+  if (panel !== 'dashboard' || url.searchParams.has('panel')) url.searchParams.set('panel', panel);
+  if (publicLinkData && contractorData) url.searchParams.set('contractor_id', contractorData.id);
+  history.replaceState(history.state, '', url);
   workspace.activate(panel);
   if (panel === 'records') portalMobile?.openExisting();
   if (panel === 'warnings') renderPortalRecords();
@@ -115,7 +120,7 @@ function renderPortalDocumentLists() {
     const query = document.getElementById(searchId).value.trim().toLowerCase();
     const rows = portalRecords.filter(r => [r.product_name, r.work_type, r.supplier, r.pdf_name, r.cas_no]
       .some(value => (value || '').toLowerCase().includes(query)));
-  document.getElementById(listId).innerHTML = rows.length ? `<p class="portal-register-scroll-note">표를 좌우로 밀면 공급업체·CAS·사용 상태·원본을 확인할 수 있습니다.</p><div class="portal-document-table-scroll" tabindex="0" role="region" aria-label="MSDS 대장"><table class="portal-document-table portal-register-table"><thead><tr><th>제품명</th><th>협력사</th><th>공종</th><th>공급업체</th><th>CAS</th><th>특별</th><th>상태</th><th>원본</th></tr></thead><tbody>${rows.map(r=>`<tr class="document-row"><td><button type="button" class="portal-msds-product" data-warning-id="${escapeHtml(r.id)}" aria-label="${escapeHtml(r.product_name)} 경고표지 보기">${escapeHtml(r.product_name)}</button><div class="portal-msds-version">v${escapeHtml(r.version||1)}${r.submission_no_valid==='N'?'<span class="portal-submission-alert"> · 제출번호 확인필요</span>':''}</div><button type="button" class="portal-warning-direct" data-warning-print-id="${escapeHtml(r.id)}" aria-label="${escapeHtml(r.product_name)} 경고표지 인쇄" title="${printable(r)?'A4 1매 인쇄':(r.status||'active')!=='active'?'사용중인 물질만 인쇄할 수 있습니다':'안전정보 등록 후 인쇄할 수 있습니다'}" ${printable(r)?'':'disabled'}>경고표지 인쇄</button></td><td>${escapeHtml(r.contractor||contractorData?.name||'-')}</td><td>${escapeHtml(r.work_type||'-')}</td><td>${escapeHtml(r.supplier||'-')}</td><td>${escapeHtml(r.cas_no||'-')}</td><td><span class="portal-register-badge ${r.legal_special==='Y'?'is-special':''}">${r.legal_special==='Y'?'특별':'일반'}</span></td><td>${msdsStatusSwitch(r,'togglePortalMsdsStatus',!portalUsageAllowed)}</td><td>${r.pdf_path?`<a class="portal-register-pdf" href="${import.meta.env.VITE_SUPABASE_URL}/functions/v1/msds-view?id=${encodeURIComponent(r.id)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(r.product_name)} 원본 PDF 열기"><svg width="16" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 3H5v18h14V8l-5-5ZM14 3v5h5M8 13h8M8 17h6"/></svg><span>PDF 보기</span></a>`:'<span class="muted">-</span>'}</td></tr>`).join('')}</tbody></table></div><p class="portal-pdf-help">제품명을 누르면 경고표지를 확인할 수 있습니다. 원본 PDF는 새 창에서 열어 인쇄하세요.${portalUsageAllowed?'':'<br>사용 상태 변경은 현장 관리자에게 요청해주세요.'}</p>` : `<div class="portal-empty">${query?'검색 결과가 없습니다.':'아직 등록된 MSDS가 없습니다. 위에서 파일을 추가해주세요.'}</div>`;
+  document.getElementById(listId).innerHTML = rows.length ? `<p class="portal-register-scroll-note">표를 좌우로 밀면 공급업체·CAS·사용 상태·원본을 확인할 수 있습니다.</p><div class="portal-document-table-scroll" tabindex="0" role="region" aria-label="MSDS 대장"><table class="portal-document-table portal-register-table"><thead><tr><th>제품명</th><th>협력사</th><th>공종</th><th>공급업체</th><th>CAS</th><th>특별</th><th>상태</th><th>원본</th></tr></thead><tbody>${rows.map(r=>`<tr class="document-row"><td><button type="button" class="portal-msds-product" data-warning-id="${escapeHtml(r.id)}" aria-label="${escapeHtml(r.product_name)} 경고표지 보기">${escapeHtml(r.product_name)}</button><div class="portal-original-name">${escapeHtml(r.pdf_name || '')}</div><div class="portal-msds-version">v${escapeHtml(r.version||1)}${r.submission_no_valid==='N'?'<span class="portal-submission-alert"> · 제출번호 확인필요</span>':''}</div><button type="button" class="portal-warning-direct" data-warning-print-id="${escapeHtml(r.id)}" aria-label="${escapeHtml(r.product_name)} 경고표지 인쇄" title="${printable(r)?'A4 1매 인쇄':(r.status||'active')!=='active'?'사용중인 물질만 인쇄할 수 있습니다':'안전정보 등록 후 인쇄할 수 있습니다'}" ${printable(r)?'':'disabled'}>경고표지 인쇄</button></td><td>${escapeHtml(r.contractor||contractorData?.name||'-')}</td><td>${escapeHtml(r.work_type||'-')}</td><td>${escapeHtml(r.supplier||'-')}</td><td>${escapeHtml(r.cas_no||'-')}</td><td><span class="portal-register-badge ${r.legal_special==='Y'?'is-special':''}">${r.legal_special==='Y'?'특별':'일반'}</span></td><td>${msdsStatusSwitch(r,'togglePortalMsdsStatus',!portalUsageAllowed)}</td><td>${r.pdf_path?`<a class="portal-register-pdf" href="${import.meta.env.VITE_SUPABASE_URL}/functions/v1/msds-view?id=${encodeURIComponent(r.id)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(r.product_name)} 원본 PDF 열기"><svg width="16" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 3H5v18h14V8l-5-5ZM14 3v5h5M8 13h8M8 17h6"/></svg><span>PDF 보기</span></a>`:'<span class="muted">-</span>'}</td></tr>`).join('')}</tbody></table></div><p class="portal-pdf-help">제품명을 누르면 경고표지를 확인할 수 있습니다. 원본 PDF는 새 창에서 열어 인쇄하세요.${portalUsageAllowed?'':'<br>사용 상태 변경은 현장 관리자에게 요청해주세요.'}</p>` : `<div class="portal-empty">${query?'검색 결과가 없습니다.':listId === 'uploadExistingList' ? '접수된 MSDS가 없습니다.' : '등록된 MSDS가 없습니다. <button type="button" class="btn btn-secondary" data-go-upload>MSDS 파일 제출</button>'}</div>`;
     if (listId === 'uploadExistingList') {
       document.getElementById('uploadExistingCount').textContent = query
         ? `검색 ${rows.length}건 / 전체 ${portalRecords.length}건` : `${portalRecords.length}건`;
@@ -136,6 +141,7 @@ window.togglePortalMsdsStatus=async function(id){
  finally{pendingPortalStatuses.delete(id);document.querySelectorAll('.msds-usage-switch').forEach(button=>{if(button.dataset.recordId===id)button.disabled=button.hasAttribute('data-readonly');});}
 };
 for(const id of ['portalRecordList','uploadExistingList'])document.getElementById(id).addEventListener('click',event=>{
+ if(event.target.closest('[data-go-upload]')) { window.switchPortalPanel('upload'); return; }
  const printButton=event.target.closest('[data-warning-print-id]');
  if(printButton){
   const record=portalRecords.find(row=>row.id===printButton.dataset.warningPrintId);
@@ -353,32 +359,22 @@ window.onFileSelect = function (e) {
 };
 function addSupportedFiles(files, workType) {
   if (uploadInProgress) return;
-  const types = ['application/pdf', 'image/jpeg', 'image/png'];
-  const valid = files.filter(file => types.includes(file.type));
-  if (valid.length < files.length) toast(`PDF/JPG/PNG만 가능합니다 (${files.length - valid.length}개 제외)`, 'error');
-  if (valid.length) addFiles(valid, workType);
-}
-
-function addFiles(files, workType) {
-  files.forEach((file) => {
-    const id = Date.now() + Math.random().toString(36).slice(2);
-    const item = {
-      id,
-      file,
-      workType: workType || '미지정',
-      name: file.name,
-      data: null,
-      mediaType: file.type,
-      status: 'waiting',
-    };
-    fileQueue.push(item);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      item.data = ev.target.result.split(',')[1];
-      renderFileList();
-    };
-    reader.readAsDataURL(file);
-  });
+  const mediaTypes = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
+  const rejected = [];
+  for (const file of files) {
+    const extension = file.name.split('.').pop().toLowerCase();
+    const mediaType = file.type || mediaTypes[extension];
+    if (!Object.values(mediaTypes).includes(mediaType) || !file.size) {
+      rejected.push(file.name);
+      continue;
+    }
+    fileQueue.push({
+      id: crypto.randomUUID(), file, name: file.name, mediaType,
+      workType: workType || '미지정', status: 'waiting', stored: false,
+    });
+  }
+  document.getElementById('fileSelectionError').textContent = rejected.length
+    ? `${rejected.join(', ')} 제외됨. 내용이 있는 PDF, JPG, PNG 파일을 선택해주세요.` : '';
   renderFileList();
   renderWorkTypes();
 }
@@ -389,14 +385,13 @@ function renderFileList() {
     el.replaceChildren();
     el.style.display = 'none';
     document.getElementById('uploadBtn').disabled = true;
-    document.getElementById('uploadBtn').textContent='파일 선택 후 업로드';
+    document.getElementById('uploadBtn').textContent='파일 선택 후 제출';
     return;
   }
   el.style.display = 'flex';
   document.getElementById('uploadBtn').disabled = uploadInProgress
-    || !fileQueue.some(item => item.status === 'waiting')
-    || fileQueue.some(item => item.status === 'waiting' && !item.data);
-  document.getElementById('uploadBtn').textContent=uploadInProgress?'업로드 중…':`선택한 ${fileQueue.filter(item=>item.status==='waiting').length}개 파일 업로드`;
+    || !fileQueue.some(item => item.status === 'waiting');
+  document.getElementById('uploadBtn').textContent=uploadInProgress?'제출 중…':`선택한 ${fileQueue.filter(item=>item.status==='waiting').length}개 파일 제출`;
   el.innerHTML = fileQueue
     .map(
       (item) => `
@@ -409,7 +404,7 @@ function renderFileList() {
   ${item.status === 'uploading' ? '<div class="progress-bar"><div class="progress-fill"></div></div>' : ''}
 </div>
 ${!uploadInProgress && item.status === 'error' ? `<button class="btn btn-secondary" onclick="retryQueuedFile('${item.id}')">재시도</button>` : ''}
-${!uploadInProgress ? `<button class="fi-remove" onclick="removeFile('${item.id}')">✕</button>` : ''}
+${!uploadInProgress ? `<button class="fi-remove" aria-label="${escapeHtml(item.name)} 목록에서 제외" onclick="removeFile('${item.id}')">✕</button>` : ''}
     </div>`,
     )
     .join('');
@@ -430,41 +425,48 @@ window.removeFile = function (id) {
 
 // ─── 업로드 ───
 window.startUpload = async function () {
-  if (uploadInProgress || fileQueue.some(item => item.status === 'waiting' && !item.data)) return;
-  const waiting = fileQueue.filter((f) => f.status === 'waiting' && f.data);
+  if (uploadInProgress) return;
+  const waiting = fileQueue.filter((f) => f.status === 'waiting');
   if (waiting.length === 0) return;
   uploadInProgress = true;
   document.getElementById('portalWorkTypeAdd').disabled = true;
   renderWorkTypes();
   document.getElementById('uploadBtn').disabled = true;
+  try {
+    const scope = await portalRequest(contractorData.id);
+    if (scope.contractor?.id !== contractorData.id || scope.public_link?.allow_msds === false) {
+      throw new Error('이 링크에서는 MSDS를 제출할 수 없습니다. 담당 보건관리자에게 링크를 확인해주세요.');
+    }
+  } catch (error) {
+    document.getElementById('fileSelectionError').textContent = error.message;
+    uploadInProgress = false;
+    document.getElementById('portalWorkTypeAdd').disabled = false;
+    renderFileList();
+    renderWorkTypes();
+    return;
+  }
+  document.getElementById('fileSelectionError').textContent = '';
   let saved = 0;
   for (const item of waiting) {
     item.status = 'uploading';
     renderFileList();
     try {
-      // 공개 링크에서는 현장 관리자 API 비용과 문서 외부 전송을 막고 파일만 접수합니다.
-      // 보건관리자가 로그인 후 MSDS 대장에서 필요한 건만 AI 분석합니다.
-      // 파일을 먼저 스토리지에 올리고, PDF 정보를 포함해 한 번에 저장
-      // (기존 방식은 저장 후 UPDATE였는데, 비로그인 권한으로는 UPDATE가 조용히 실패해 has_pdf가 항상 false로 남는 버그가 있었음)
-      const recId = crypto.randomUUID();
-      const ext =
-        item.mediaType === 'application/pdf'
-          ? 'pdf'
-          : item.mediaType.split('/')[1] || 'jpg';
-      const path = `${wsData.id}/${recId}.${ext}`;
-      const bytes = atob(item.data);
-      const arr = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-      const blob = new Blob([arr], { type: item.mediaType });
-      const { error: stErr } = await supabase.storage
-        .from('msds-pdfs')
-        .upload(path, blob, {
-          contentType: item.mediaType,
-          upsert: false,
+      const recId = item.id;
+      const path = `${wsData.id}/${recId}.${item.mediaType.split('/')[1]}`;
+      // Keep the same object and primary key if either acknowledgement is lost.
+      if (!item.stored) {
+        const { error } = await supabase.storage.from('msds-pdfs').upload(path, item.file, {
+          contentType: item.mediaType, upsert: false,
         });
-      if (stErr)
-        throw new Error('원본 파일 업로드 실패: ' + stErr.message);
-      const hasPdf = true;
+        if (error && !(item.storageAttempted && (error.statusCode === '409' || /already exists|duplicate/i.test(error.message)))) {
+          item.storageAttempted = true;
+          const status = Number(error.statusCode || error.status);
+          if (status === 413) throw new Error('원본 파일이 저장소의 허용 용량을 넘었습니다. 목록에서 제외하고 작은 파일을 선택해주세요.');
+          if (status === 401 || status === 403) throw new Error('원본 파일 저장 권한을 확인하지 못했습니다. 보건관리자에게 링크를 확인해주세요.');
+          throw new Error('원본 파일을 전송하지 못했습니다. 연결을 확인하고 재시도해주세요.');
+        }
+        item.stored = true;
+      }
       const { error: dbErr } = await supabase
         .from('msds_records')
         .insert({
@@ -497,41 +499,49 @@ window.startUpload = async function () {
           receipt_date: new Date().toISOString().split('T')[0],
           version: 1,
           history: [],
-          has_pdf: hasPdf,
-          pdf_name: hasPdf ? item.name : null,
-          pdf_path: hasPdf ? path : null,
+          has_pdf: true,
+          pdf_name: item.name,
+          pdf_path: path,
         });
       if (dbErr) {
-        await supabase.storage.from('msds-pdfs').remove([path]);
-        throw new Error('저장 실패: ' + dbErr.message);
+        // A timeout can arrive after the insert committed. Confirm through the scoped read API.
+        const context = await portalRequest(contractorData.id);
+        if (!context.records?.some(record => record.id === recId && record.pdf_path === path)) {
+          throw new Error('접수 대장에서 저장을 확인하지 못했습니다. 재시도를 눌러 같은 파일을 다시 제출해주세요.');
+        }
       }
       saved++;
       item.status = 'done';
     } catch (err) {
       item.status = 'error';
       item.error = err.message;
-      console.error(err);
+
     }
     renderFileList();
-    await new Promise((r) => setTimeout(r, 300));
+
   }
   if (saved > 0) {
     await refreshPortalRecords();
-    const failed = waiting.length - saved;
-    document.getElementById('uploadedCount').textContent = saved;
+    const failures = fileQueue.filter(item => item.status === 'error');
+    const failed = failures.length;
+    document.getElementById('receiptHeading').classList.toggle('partial-receipt', Boolean(failed));
+    document.getElementById('receiptHeading').textContent = failed ? '일부 파일 접수' : '접수 완료';
+    document.getElementById('receiptFiles').textContent = fileQueue.filter(item => item.status === 'done').map(item => item.name).join('\n');
+    document.getElementById('uploadedCount').textContent = fileQueue.filter(item => item.status === 'done').length;
     const failureSummary = document.getElementById(
       'uploadFailureSummary',
     );
     const retryBtn = document.getElementById('retryFailedBtn');
     failureSummary.style.display = failed ? 'block' : 'none';
     failureSummary.textContent = failed
-      ? `${failed}개 파일은 업로드하지 못했습니다. 아래 버튼으로 다시 시도해주세요.`
+      ? failures.map(item => `${item.name} · ${item.error}`).join('\n')
       : '';
     retryBtn.style.display = failed ? '' : 'none';
     setStep(3);
     document.getElementById('stepView1').style.display = 'none';
     document.getElementById('stepView2').style.display = 'none';
     document.getElementById('stepView3').style.display = 'block';
+    document.getElementById('receiptHeading').focus();
     renderLicenseCard();
   } else {
     toast('업로드 실패. 다시 시도해주세요.', 'error');
@@ -544,6 +554,7 @@ window.startUpload = async function () {
 // ─── 완료 후 액션 ───
 window.resetForm = function () {
   fileQueue = [];
+  document.getElementById('fileSelectionError').textContent = '';
   selectedWorkType = '';
   document
     .querySelectorAll('.worktype-btn')
@@ -654,7 +665,7 @@ function renderLicenseCard() {
 window.handleLicenseFileSelect = async function (e) {
   const file = e.target.files[0];
   if (!file) return;
-  if (licenseData) return;
+  if (licenseData || e.target.disabled) return;
   if (!/\.(pdf|jpe?g|png)$/i.test(file.name) || file.size > 20 * 1024 * 1024) {
     e.target.value = ''; return toast('PDF, JPG, PNG 파일을 20MB 이하로 선택해주세요.', 'error');
   }
@@ -683,7 +694,7 @@ window.handleLicenseFileSelect = async function (e) {
     renderLicenseCard();
     renderPortalRecords();
   } catch (err) {
-    statusEl.textContent = '업로드 실패: ' + err.message;
+    statusEl.textContent = '등록증 접수를 확인하지 못했습니다. 새로고침으로 제출 상태를 확인한 후 같은 파일을 다시 선택해주세요.';
     statusEl.style.color = 'var(--danger)';
   } finally { e.target.disabled = false; e.target.value = ''; }
 };
@@ -725,8 +736,8 @@ ${reuploadItems
   <div ${['waiting','error'].includes(item.status) ? `class="upload-dropzone" data-upload-input="reuploadFile-${item.id}" role="button" tabindex="0"` : ''} style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:8px;">
     <span style="font-size:18px;">${{ waiting: '📄', uploading: '⏳', done: '✅', error: '❌' }[item.status]}</span>
     <div style="flex:1;min-width:0;">
-      <div style="font-weight:700;font-size:13px;color:#1e293b;">${item.product_name} <span style="color:#94a3b8;font-weight:400;">v${item.version || 1}</span></div>
-      <div style="font-size:12px;color:#b45309;">${item.status === 'done' ? '재업로드 접수 완료! 감사합니다' : item.status === 'uploading' ? '안전하게 접수 중...' : item.status === 'error' ? '오류: ' + (item.error || '다시 시도해주세요') : '사유: ' + (item.reupload_reason || '재업로드 필요')}</div>
+      <div style="font-weight:700;font-size:13px;color:#1e293b;">${escapeHtml(item.product_name)} <span style="color:#94a3b8;font-weight:400;">v${item.version || 1}</span></div>
+      <div style="font-size:12px;color:#b45309;">${item.status === 'done' ? '재업로드 접수 완료! 감사합니다' : item.status === 'uploading' ? '안전하게 접수 중...' : item.status === 'error' ? '오류: ' + escapeHtml(item.error || '다시 시도해주세요') : '사유: ' + escapeHtml(item.reupload_reason || '재업로드 필요')}</div>
     </div>
     ${item.status === 'waiting' || item.status === 'error' ? `<button class="btn btn-primary" style="flex-shrink:0;padding:8px 14px;" onclick="pickReuploadFile('${item.id}')">파일 올리기</button><input type="file" id="reuploadFile-${item.id}" accept=".pdf,.jpg,.jpeg,.png" hidden onchange="onReuploadFileSelect(event,'${item.id}')"><span class="upload-dropzone-hint">파일 선택 또는 여기에 드래그</span>` : ''}
   </div>`,
@@ -748,7 +759,7 @@ window.onReuploadFileSelect = function (event, recordId) {
 
 async function doReupload(recordId, file) {
   const item = reuploadItems.find((i) => i.id === recordId);
-  if (!item) return;
+  if (!item || !['waiting', 'error'].includes(item.status)) return;
   const ok = ['application/pdf', 'image/jpeg', 'image/png'];
   if (!ok.includes(file.type)) {
     toast('PDF/JPG/PNG만 가능합니다', 'error');
@@ -757,27 +768,13 @@ async function doReupload(recordId, file) {
   item.status = 'uploading';
   renderReuploadSection();
   try {
-    // 1) 파일 읽기
-    const base64 = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = (ev) => res(ev.target.result.split(',')[1]);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-    // 2) 공개 링크에서는 AI로 보내지 않고 스토리지 파일만 교체
-    const ext =
-      file.type === 'application/pdf'
-        ? 'pdf'
-        : file.type.split('/')[1] || 'jpg';
-    const path = `${wsData.id}/${recordId}.${ext}`;
-    const bytes = atob(base64);
-    const arr = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    // Keep the registered original intact until the replacement RPC commits.
+    const path = `${wsData.id}/${crypto.randomUUID()}.${file.type.split('/')[1]}`;
     const { error: stErr } = await supabase.storage
       .from('msds-pdfs')
-      .upload(path, new Blob([arr], { type: file.type }), {
+      .upload(path, file, {
         contentType: file.type,
-        upsert: true,
+        upsert: false,
       });
     const hasPdf = !stErr;
     // 3) 토큰 검증 RPC로 버전 업 + 요청 해제 + 관리자 알림
@@ -797,6 +794,7 @@ async function doReupload(recordId, file) {
     if (upErr) throw new Error('저장 실패: ' + upErr.message);
     item.status = 'done';
     item.version = nv;
+    await refreshPortalRecords();
   } catch (err) {
     item.status = 'error';
     item.error = err.message;

@@ -84,3 +84,35 @@
 @media(max-width:768px){#warningsPanel .print-settings>#printPortalWarnings{flex-basis:100%;width:100%;margin-left:0;min-height:48px;font-size:16px}#warningsPanel .print-settings>#portalPrintSelection{font-size:14px}}
 
 #warningsPanel .portal-preview-pages{margin:0 0 12px}
+
+.contractor-workspace .header-ws, .contractor-workspace .header-desc,
+#licenseFileNameDisplay, #uploadPanel .fi-name, #receiptFiles, #uploadFailureSummary {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+#uploadPanel .fi-name { font-size: 16px; line-height: 1.45; }
+#uploadPanel .fi-info { min-width: 0; }
+#uploadPanel .fi-remove { flex-shrink: 0; min-width: 44px; min-height: 44px; }
+#receiptFiles, #uploadFailureSummary { white-space: pre-line; line-height: 1.6; }
+#uploadViewHost::before { content: none; }
+#uploadPanel .portal-workflow-heading { margin-bottom: 14px; }
+#uploadPanel .field-error { color: var(--danger); font-size: 15px; overflow-wrap: anywhere; }
+#uploadPanel .field-error:empty { display: none; }
+.cw-submit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.contractor-workspace .portal-overview { flex-wrap: wrap; gap: 12px; }
+.cw-submit-actions button { min-height: 46px; font-size: 16px; }
+#uploadPanel .complete-screen { text-align: left; padding: 16px 0; }
+#uploadPanel .complete-title { font-size: 22px; color: var(--ok); }
+#uploadPanel .complete-actions { flex-wrap: wrap; justify-content: flex-start; }
+#uploadPanel .file-item.error { flex-wrap: wrap; }
+#uploadPanel .file-item.error .fi-info { flex: 1 1 65%; }
+@media (max-width: 768px) {
+  .contractor-workspace > .header .header-desc { font-size: 15px; color: var(--text2); }
+  #uploadPanel #stepView2 > div:last-child { position: sticky; bottom: 0; background: white; padding: 6px 0; z-index: 2; }
+}
+.portal-original-name { font-size: 14px; color: var(--text2); overflow-wrap: anywhere; }
+
+#uploadPanel .partial-receipt { color: var(--warn); }
+
+#uploadPanel .portal-workflow-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+#uploadPanel .portal-workflow-heading a { color: var(--text2); font-size: 14px; text-underline-offset: 3px; }

@@ -75,7 +75,8 @@ el('directoryForm').addEventListener('submit',async e=>{
       p_name:el('directoryName').value.trim(),p_manager_name:el('directoryManager').value.trim(),p_manager_phone:el('directoryPhone').value.trim()});
     if(error)throw error;
     el('directoryDialog').close();
-    el('directorySearch').value=''; el('directoryFilter').value='all'; await refresh();
+    if (!el('directoryEditingId').value) { el('directorySearch').value=''; el('directoryFilter').value='all'; }
+    await refresh();
     const btn=[...document.querySelectorAll('[data-edit]')].find(btn=>btn.dataset.edit===id); btn?.closest('.directory-company-row')?.querySelector('.directory-open-workspace')?.focus();
   } catch(error){el('directoryFormError').textContent=errorText(error);}
   finally{el('directorySave').disabled=false;}

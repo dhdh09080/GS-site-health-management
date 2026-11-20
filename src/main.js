@@ -107,6 +107,8 @@ let tokens = [],
 let businessLicenses = [];
 const MSDS_PAGE_SIZE = 30;
 let msdsPage = 1;
+let contractorListOrigin = null;
+const fieldDataReady = new Set();
 let workspaceLoadVersion = 0;
 let workspaceReadPending = 0;
 let workspaceReadSlow = false;
@@ -126,6 +128,8 @@ let pendingInvites = [];
 let measureFileData = null,
   measureFileName_val = null;
 let contractorFilter = 'all';
+let companyPage = 1;
+const COMPANY_PAGE_SIZE = 30;
 let activeHealthSub = 'result';
 let aiSettingsState = null;
 let pendingMsdsReanalysis = null;
@@ -953,6 +957,13 @@ function translateAuthError(m) {
 // ═══════════════════════════════════════════════
 function resetWorkspaceScopedState() {
   hazardMap.reset();
+  contractorListOrigin = null;
+  document.getElementById('msdsReturn').hidden = true;
+  fieldDataReady.clear();
+  companyPage = 1;
+  contractorFilter = 'all';
+  document.getElementById('conMgrSearch').value = '';
+  document.getElementById('conMgrFilter').value = 'all';
   msdsPage = 1;
   workspaceLoadVersion++;
   workspaceReadPending = 0;
@@ -999,6 +1010,7 @@ function resetWorkspaceScopedState() {
   activeSnapshotId = null;
 
   siteDirectoryLink = null;
+  directoryReadFailed = false;
   sortingRows = [];
   mpMonth = '';
   mpRecords = [];
@@ -1832,7 +1844,8 @@ window.showPage = function (id) {
   if (id === 'home') {
     renderGsHome();
   }
-  if (id === 'msds') { renderContractorSidebar(); renderMsdsTable(); }
+  if (id === 'msds') { renderContractorSidebar(); renderMsdsTable(msdsPage); }
+  else { contractorListOrigin = null; document.getElementById('msdsReturn').hidden = true; }
   if (id === 'requests') renderMsdsRequests();
   if (id === 'contractors') {
     switchContractorTab(linksRequested ? 'links' : contractorTab);
@@ -2881,13 +2894,18 @@ window.addFeedbackComment = async function () {
 // Contractors & Work Types
 // ═══════════════════════════════════════════════
 async function loadContractors() {
+  const workspaceId = currentWS?.id;
+  if (!workspaceId) return;
   const { data, error } = await supabase
     .from('contractors')
     .select('*')
-    .eq('workspace_id', currentWS.id)
+    .eq('workspace_id', workspaceId)
     .order('created_at');
-  if (error) return { error };
+  if (currentWS?.id !== workspaceId) return;
+  if (error) { fieldDataReady.delete('협력사'); renderFieldInbox(); return { error }; }
   contractors = data || [];
+  fieldDataReady.add('협력사');
+  renderFieldInbox();
   renderContractorTags();
   populateContractorSelects();
   renderSiteDirectoryLink();
@@ -3043,7 +3061,6 @@ function getWorkTypesForContractor(contractorId) {
 }
 
 window.updateBatchWorkTypes = function () {
-  const searchInput = document.getElementById('batchWorkTypeSearch'); if (searchInput) searchInput.value = '';
   const workInput = document.getElementById('batchWorkTypeSearch');
   if (workInput) workInput.value = '';
   const conId = document.getElementById('batchContractor').value;
@@ -3083,6 +3100,13 @@ window.renderContractorTags = function () {
   if (totalEl) totalEl.textContent = contractors.length;
   if (msdsEl) msdsEl.textContent = missingMsds.length;
   contractorEditor.closeMenu();
+  const pages = Math.max(1, Math.ceil(list.length / COMPANY_PAGE_SIZE));
+  companyPage = Math.min(companyPage, pages);
+  const start = (companyPage - 1) * COMPANY_PAGE_SIZE;
+  document.getElementById('companyPager').hidden = pages === 1;
+  document.getElementById('companyPageStatus').textContent = `${companyPage} / ${pages} 페이지`;
+  document.getElementById('companyPrev').disabled = companyPage === 1;
+  document.getElementById('companyNext').disabled = companyPage === pages;
   if (!list.length) {
     el.innerHTML = `<div class="contractor-empty">
       <div>${q ? '검색 조건에 맞는 협력사가 없습니다' : contractorFilter === 'all' ? '등록된 협력사가 없습니다' : '해당 상태의 협력사가 없습니다'}</div>
@@ -3090,10 +3114,24 @@ window.renderContractorTags = function () {
     </div>`;
     return;
   }
-  el.innerHTML = contractorTableHtml(list, { workTypes, msdsRecords, businessLicenses });
+  el.innerHTML = contractorTableHtml(list.slice(start, start + COMPANY_PAGE_SIZE), { workTypes, msdsRecords, businessLicenses });
 };
 
+document.getElementById('conMgrSearch').addEventListener('input', () => {
+  companyPage = 1;
+  renderContractorTags();
+});
+document.getElementById('companyPrev').addEventListener('click', () => {
+  companyPage = Math.max(1, companyPage - 1);
+  renderContractorTags();
+});
+document.getElementById('companyNext').addEventListener('click', () => {
+  companyPage++;
+  renderContractorTags();
+});
+
 window.setContractorFilter = function (filter) {
+  companyPage = 1;
   contractorFilter = ['missing-msds','missing-license','active','inactive'].includes(filter) ? filter : 'all';
   const select = document.getElementById('conMgrFilter');
   if (select && select.value !== contractorFilter)
@@ -3151,10 +3189,27 @@ window.prefillNewContractor = function () {
 window.openContractorMsds = function (id) {
   const name = contractors.find((c) => c.id === id)?.name;
   if (!name) return;
+  const origin = document.querySelector('.page.active')?.id.slice(5);
+  contractorListOrigin = ['contractors','requests','home'].includes(origin) ? origin : null;
   showPage('msds');
+  document.getElementById('msdsReturn').hidden = !contractorListOrigin;
+  for (const id of ['searchInput','filterWorkType','filterStatus','filterReceipt','filterSpecial','msdsContractorSearch']) {
+    document.getElementById(id).value = '';
+  }
   window.selectedContractor = name;
   renderMsdsTable();
   renderContractorSidebar?.();
+};
+
+document.getElementById('msdsReturn').addEventListener('click', () => {
+  if (contractorListOrigin) showPage(contractorListOrigin);
+});
+
+window.openFieldCompanies = function (filter, id) {
+  document.getElementById('conMgrSearch').value = contractors.find(c => c.id === id)?.name || '';
+  contractorTab = 'companies';
+  showPage('contractors');
+  setContractorFilter(filter);
 };
 
 window.focusSiteContractorDirectory = function () {
@@ -3632,8 +3687,10 @@ async function loadMsdsRecords() {
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false });
   if (currentWS?.id !== workspaceId) return;
-  if (error) throw error;
+  if (error) { fieldDataReady.delete('MSDS'); renderFieldInbox(); throw error; }
   msdsRecords = data || [];
+  fieldDataReady.add('MSDS');
+  renderFieldInbox();
   updateStats();
   renderMsdsTable(msdsPage);
   renderHomeDashboard();
@@ -3695,7 +3752,7 @@ function getFilteredMsds() {
     .filter((r) => {
       const mq =
         !q ||
-        [r.product_name, r.supplier, r.cas_no, r.contractor, r.work_type]
+        [r.product_name, r.pdf_name, r.supplier, r.cas_no, r.contractor, r.work_type]
           .join(' ')
           .toLowerCase()
           .includes(q);
@@ -3723,7 +3780,7 @@ window.renderMsdsTable = function (pageNumber = 1) {
   const pageRecords = filtered.slice(start, start + MSDS_PAGE_SIZE);
   const pager = document.getElementById('msdsPagination');
   pager.hidden = filtered.length <= MSDS_PAGE_SIZE;
-  document.getElementById('msdsPageStatus').textContent = `${msdsPage} / ${pages} 페이지 · ${start + 1}–${Math.min(start + MSDS_PAGE_SIZE, filtered.length)} / ${filtered.length}건`;
+  document.getElementById('msdsPageStatus').textContent = `${msdsPage} / ${pages} 페이지 · ${filtered.length ? start + 1 : 0}–${Math.min(start + MSDS_PAGE_SIZE, filtered.length)} / ${filtered.length}건`;
   document.getElementById('msdsPrevPage').disabled = msdsPage === 1;
   document.getElementById('msdsNextPage').disabled = msdsPage === pages;
   mobileExperience.refreshFilters();
@@ -3734,7 +3791,7 @@ window.renderMsdsTable = function (pageNumber = 1) {
   if (checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
   if (filtered.length === 0) {
     tbody.innerHTML =
-      '<tr class="empty-row"><td colspan="10">등록된 MSDS가 없습니다</td></tr>';
+      `<tr class="empty-row"><td colspan="10">${msdsRecords.length ? '조회 조건에 맞는 MSDS가 없습니다' : '등록된 MSDS가 없습니다'}</td></tr>`;
     return;
   }
   tbody.innerHTML = pageRecords
@@ -4480,6 +4537,8 @@ window.showMsdsDetail = function (id) {
   document.getElementById('detailBody').innerHTML = `
     ${detailRow('제품명', `<strong>${safe(r.product_name)}</strong> <span class="badge badge-gray detail-version">v${escapeHtml(r.version || 1)}</span>`)}
     ${detailRow('협력사', safe(r.contractor))}
+    ${detailRow('접수 파일명', safe(r.pdf_name))}
+    ${detailRow('수령 정보', `<button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('msdsDetailModal');openReceipt('${r.id}')">수령 정보 확인·수정</button>`)}
     ${detailRow('취급 공종', safe(r.work_type))}
     ${detailRow('공급업체', `${safe(r.supplier)}${r.supplier_contact ? ` (${safe(r.supplier_contact)})` : ''}`)}
     ${detailRow('MSDS 개정일', safe(r.issue_date))}
@@ -5070,10 +5129,14 @@ window.startMsdsEdit = function (id) {
 window.deleteMsdsRecord = async function (id) {
   const r = msdsRecords.find((x) => x.id === id);
   if (!confirm(`"${r?.product_name || '이 항목'}"을 삭제하시겠습니까?`)) return;
-  if (r?.has_pdf && r?.pdf_path)
-    await supabase.storage.from('msds-pdfs').remove([r.pdf_path]);
-  await supabase.from('msds_records').delete().eq('id', id);
+  const workspaceId = currentWS?.id;
+  const { data, error } = await supabase.from('msds_records').delete()
+    .eq('workspace_id', workspaceId).eq('id', id).select('id,pdf_path').single();
+  if (error) return toast('대장 삭제를 확인하지 못했습니다. 목록을 새로고침해주세요.', 'error');
+  const cleanup = data.pdf_path ? await supabase.storage.from('msds-pdfs').remove([data.pdf_path]) : null;
+  if (currentWS?.id !== workspaceId) return;
   await loadMsdsRecords();
+  if (cleanup?.error) return toast('대장에서 삭제했습니다. 원본 파일 정리는 확인이 필요합니다.', 'error');
   toast('삭제됐습니다');
 };
 
@@ -5090,7 +5153,7 @@ window.toggleMsdsStatus = async function (id) {
   const {data,error}=await supabase.from('msds_records').update({status}).eq('id',id).eq('workspace_id',workspace).select('id,status').single();
   if(error)throw error;
   if(currentWS?.id!==workspace)return;
-  record.status=data.status;renderMsdsTable();updateStats();toast(status==='active'?'사용중으로 변경했습니다':'미사용중으로 변경했습니다','success');
+  record.status=data.status;renderMsdsTable(msdsPage);updateStats();toast(status==='active'?'사용중으로 변경했습니다':'미사용중으로 변경했습니다','success');
  }catch(error){if(currentWS?.id===workspace)toast('사용 상태 변경 실패: '+error.message,'error');}
  finally{pendingMsdsStatuses.delete(id);document.querySelectorAll('.msds-usage-switch').forEach(button=>{if(button.dataset.recordId===id)button.disabled=button.hasAttribute('data-readonly');});}
 };
@@ -5099,14 +5162,15 @@ window.openReceipt = function (id) {
   const r = msdsRecords.find((x) => x.id === id);
   if (!r) return;
   receiptEditId = id;
-  const recv = msdsReceived(r);
+  document.getElementById('receiptError').textContent = '';
+  const recv = r.receipt_status ? r.receipt_status === 'received' : msdsReceived(r);
   document.getElementById('receiptBody').innerHTML = `
-    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;"><strong>${r.product_name}</strong> · ${r.contractor}</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;"><strong>${escapeHtml(r.product_name)}</strong> · ${escapeHtml(r.contractor)}</div>
     <div class="form-field" style="margin-bottom:12px;"><label class="form-label">수령 상태</label>
       <select class="form-input" id="rc_status"><option value="received" ${recv ? 'selected' : ''}>✓ 수령 완료</option><option value="pending" ${!recv ? 'selected' : ''}>! 미수령</option></select></div>
-    <div class="form-field" style="margin-bottom:12px;"><label class="form-label">수령일</label><input class="form-input" type="date" id="rc_date" value="${r.receipt_date || ''}"></div>
-    <div class="form-field" style="margin-bottom:12px;"><label class="form-label">담당자</label><input class="form-input" id="rc_manager" value="${r.receipt_manager || ''}" placeholder="예) 김OO 과장"></div>
-    <div class="form-field"><label class="form-label">비고</label><input class="form-input" id="rc_note" value="${r.receipt_note || ''}"></div>`;
+    <div class="form-field" style="margin-bottom:12px;"><label class="form-label">수령일</label><input class="form-input" type="date" id="rc_date" value="${escapeHtml(r.receipt_date || '')}"></div>
+    <div class="form-field" style="margin-bottom:12px;"><label class="form-label">담당자</label><input class="form-input" id="rc_manager" value="${escapeHtml(r.receipt_manager || '')}" placeholder="예) 김OO 과장"></div>
+    <div class="form-field"><label class="form-label">비고</label><input class="form-input" id="rc_note" value="${escapeHtml(r.receipt_note || '')}"></div>`;
   openModal('receiptModal');
 };
 
@@ -5117,13 +5181,27 @@ window.saveReceipt = async function () {
     receipt_manager: document.getElementById('rc_manager').value,
     receipt_note: document.getElementById('rc_note').value,
   };
-  await supabase.from('msds_records').update(upd).eq('id', receiptEditId);
-  Object.assign(msdsRecords.find((r) => r.id === receiptEditId) || {}, upd);
-  closeModal('receiptModal');
-  renderMsdsTable();
-  updateStats();
-  renderHomeDashboard();
-  toast('수령 정보가 저장됐습니다', 'success');
+  const button = document.getElementById('receiptSave');
+  if (button.disabled) return;
+  const id = receiptEditId, workspaceId = currentWS.id;
+  button.disabled = true;
+  try {
+    const { data, error } = await supabase.from('msds_records').update(upd)
+      .eq('workspace_id', workspaceId).eq('id', id)
+      .select('id,receipt_status,receipt_date,receipt_manager,receipt_note').single();
+    if (error) throw error;
+    if (currentWS?.id !== workspaceId) return;
+    Object.assign(msdsRecords.find(record => record.id === id) || {}, data);
+    if (receiptEditId === id) closeModal('receiptModal');
+    renderMsdsTable(msdsPage);
+    updateStats();
+    renderHomeDashboard();
+    toast('수령 정보를 저장했습니다', 'success');
+  } catch {
+    if (currentWS?.id === workspaceId && receiptEditId === id) {
+      document.getElementById('receiptError').textContent = '수령 정보 저장을 확인하지 못했습니다. 입력값을 확인하고 다시 저장해주세요.';
+    }
+  } finally { button.disabled = false; }
 };
 
 // ═══════════════════════════════════════════════
@@ -7857,12 +7935,17 @@ window.deleteSnapshot = async function (id) {
 // 사업자등록증 관리
 // ═══════════════════════════════════════════════
 async function loadBusinessLicenses() {
+  const workspaceId = currentWS?.id;
+  if (!workspaceId) return;
   const { data, error } = await supabase
     .from('business_licenses')
     .select('*, contractor:contractor_id(name)')
-    .eq('workspace_id', currentWS.id);
-  if (error) return { error };
+    .eq('workspace_id', workspaceId);
+  if (currentWS?.id !== workspaceId) return;
+  if (error) { fieldDataReady.delete('사업자등록증'); renderFieldInbox(); return { error }; }
   businessLicenses = data || [];
+  fieldDataReady.add('사업자등록증');
+  renderFieldInbox();
   renderBusinessLicenseStatus();
   renderLicenseAlert();
   renderContractorTags();
@@ -7904,7 +7987,7 @@ function renderLicenseAlert() {
   }
   wrap.style.display = '';
   list.innerHTML = `<div style="font-size:13px;color:var(--text2);">
-    ${missing.map((c) => c.name).join(', ')} — 사업자등록증 미제출
+    ${missing.map((c) => escapeHtml(c.name)).join(', ')} — 사업자등록증 미제출
     <button class="btn btn-outline btn-sm" style="margin-left:8px;" onclick="openContractorPage('missing-license')">미제출 관리</button>
   </div>`;
 }
@@ -7923,10 +8006,11 @@ window.handleManualLicenseUpload = async function (e) {
     return;
   }
 
+  const workspaceId = currentWS.id;
   e.target.disabled = true;
   try {
     const ext = file.name.split('.').pop();
-    const path = `${currentWS.id}/${conId}_${Date.now()}_${crypto.randomUUID()}.${ext}`;
+    const path = `${workspaceId}/${conId}_${Date.now()}_${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from('business-licenses')
       .upload(path, file, { contentType: file.type, upsert: false });
@@ -7936,9 +8020,9 @@ window.handleManualLicenseUpload = async function (e) {
       return;
     }
 
-    const { error } = await supabase.from('business_licenses').upsert(
+    const { error, status } = await supabase.from('business_licenses').upsert(
       {
-        workspace_id: currentWS.id,
+        workspace_id: workspaceId,
         contractor_id: conId,
         file_name: file.name,
         file_path: path,
@@ -7947,13 +8031,17 @@ window.handleManualLicenseUpload = async function (e) {
       { onConflict: 'contractor_id' },
     );
     if (error) {
-      await supabase.storage.from('business-licenses').remove([path]);
+      // A gateway timeout can follow a committed upsert. Keep that original available.
+      if (status >= 400 && status < 500 && status !== 408) {
+        await supabase.storage.from('business-licenses').remove([path]);
+      }
       toast('저장 실패: ' + error.message, 'error');
       e.target.value = '';
       return;
     }
 
     e.target.value = '';
+    if (currentWS?.id !== workspaceId) return;
     await loadBusinessLicenses();
     toast('사업자등록증이 업로드됐습니다', 'success');
   } catch (error) {
@@ -7979,22 +8067,14 @@ window.deleteLicense = async function (id) {
   if (!lic) return;
   if (!confirm(`${lic.contractor?.name} 사업자등록증을 삭제하시겠습니까?`))
     return;
-  const { error: storageError } = await supabase.storage
-    .from('business-licenses')
-    .remove([lic.file_path]);
-  if (storageError) {
-    toast('파일 삭제 실패: ' + storageError.message, 'error');
-    return;
-  }
-  const { error } = await supabase
-    .from('business_licenses')
-    .delete()
-    .eq('id', id);
-  if (error) {
-    toast('등록증 정보 삭제 실패: ' + error.message, 'error');
-    return;
-  }
+  const workspaceId = currentWS.id;
+  const { data, error } = await supabase.from('business_licenses').delete()
+    .eq('workspace_id', workspaceId).eq('id', id).select('id,file_path').single();
+  if (error) return toast('등록증 삭제를 확인하지 못했습니다. 목록을 새로고침해주세요.', 'error');
+  const cleanup = data.file_path ? await supabase.storage.from('business-licenses').remove([data.file_path]) : null;
+  if (currentWS?.id !== workspaceId) return;
   await loadBusinessLicenses();
+  if (cleanup?.error) return toast('등록증을 목록에서 삭제했습니다. 원본 파일 정리는 확인이 필요합니다.', 'error');
   toast('삭제됐습니다');
 };
 
@@ -8848,19 +8928,33 @@ window.toggleMeasureRound = async function (half, done) {
 // ═══════════════════════════════════════════════
 // 현장 전체 협력사 리스트
 // ═══════════════════════════════════════════════
+let directoryReadFailed = false;
 let siteDirectoryLink = null, siteDirectoryBusy = false, siteDirectoryLoadSequence = 0;
 async function loadSiteDirectoryLink() {
   const workspace=currentWS?.id, sequence=++siteDirectoryLoadSequence;
   if(!workspace)return;
   const {data,error}=await supabase.from('contractor_directory_links').select('*').eq('workspace_id',workspace).maybeSingle();
   if(currentWS?.id!==workspace || sequence!==siteDirectoryLoadSequence)return;
-  siteDirectoryLink=error?null:data;
+  directoryReadFailed = Boolean(error);
+  if (!error) siteDirectoryLink = data;
+  renderSiteDirectoryLink();
+  return { error };
 }
 function siteDirectoryUrl() {
   return `${location.origin}/contractors.html?dtoken=${encodeURIComponent(siteDirectoryLink.token)}`;
 }
 function renderSiteDirectoryLink() {
   const host=document.getElementById('siteDirectoryLinkState');if(!host)return;
+  if (directoryReadFailed) {
+    const badge = document.getElementById('siteDirectoryBadge');
+    badge.textContent = '조회 실패';
+    badge.classList.remove('is-active');
+    for (const id of ['siteDirectoryGenerate','siteDirectoryExtend','siteDirectoryRegenerate','siteDirectoryRevoke']) {
+      document.getElementById(id).hidden = true;
+    }
+    host.textContent = '목록 새로고침을 눌러 기존 공유 링크를 확인해주세요.';
+    return;
+  }
   const exists=Boolean(siteDirectoryLink?.token), active=exists && new Date(siteDirectoryLink.expires_at)>new Date();
   const badge=document.getElementById('siteDirectoryBadge');badge.textContent=active?'사용 중':exists?'기간 만료':'미발급';badge.classList.toggle('is-active',active);
   document.getElementById('siteDirectoryGenerate').hidden=exists;
@@ -8904,9 +8998,15 @@ window.revokeSiteDirectoryLink = function () {
   if(!confirm('공유 링크를 삭제할까요? 이 주소로는 접속할 수 없게 됩니다. 개별 협력사 링크는 유지됩니다.'))return;
   return mutateSiteDirectoryLink('delete');
 };
-window.refreshContractorDirectoryData = async function () {
-  await Promise.all([loadContractors(),loadMsdsRecords(),loadBusinessLicenses(),loadSiteDirectoryLink()]);
-  renderContractorTags(); renderSiteDirectoryLink(); toast('협력사 정보를 갱신했습니다','success');
+window.refreshContractorDirectoryData = async function (notify = true) {
+  const version = workspaceLoadVersion;
+  const reads = [['협력사',loadContractors],['MSDS',loadMsdsRecords],['사업자등록증',loadBusinessLicenses],['협력사 목록 링크',loadSiteDirectoryLink]];
+  await Promise.all(reads.map(([name, loader]) => readWorkspacePart(name, loader, version)));
+  if (version !== workspaceLoadVersion) return;
+  renderContractorTags();
+  renderSiteDirectoryLink();
+  renderBusinessLicenseStatus();
+  if (notify && !reads.some(([name]) => failedWorkspaceReads.has(name))) toast('협력사 정보를 갱신했습니다','success');
 };
 window.editContractorContact = function (id) {
   const c=contractors.find(c=>c.id===id); if(!c)return;
@@ -9705,14 +9805,14 @@ window.requestReupload = async function (id) {
       reupload_reason: reason.trim() || '재업로드 필요',
       reupload_requested_at: new Date().toISOString(),
     })
-    .eq('id', id);
+    .eq('workspace_id', currentWS.id).eq('id', id).select('id').single();
   if (error) {
     toast('요청 실패: ' + error.message, 'error');
     return;
   }
   r.reupload_requested = true;
   r.reupload_reason = reason.trim() || '재업로드 필요';
-  renderMsdsTable();
+  renderMsdsTable(msdsPage);
   toast(
     `재업로드 요청됨 — ${r.contractor}가 업로드 링크에 접속하면 표시됩니다`,
     'success',
@@ -9730,13 +9830,13 @@ window.cancelReupload = async function (id) {
       reupload_reason: null,
       reupload_requested_at: null,
     })
-    .eq('id', id);
+    .eq('workspace_id', currentWS.id).eq('id', id).select('id').single();
   if (error) {
     toast('취소 실패: ' + error.message, 'error');
     return;
   }
   r.reupload_requested = false;
-  renderMsdsTable();
+  renderMsdsTable(msdsPage);
   toast('요청이 취소됐습니다');
 };
 
@@ -10893,7 +10993,7 @@ window.switchContractorTab = function (tab) {
     }
   });
   if (currentWS && !getDevPreviewPage()) {
-    Promise.all([loadContractors(),loadMsdsRecords(),loadBusinessLicenses(),loadSiteDirectoryLink()]).then(() => { renderContractorTags(); renderSiteDirectoryLink(); renderBusinessLicenseStatus(); });
+    refreshContractorDirectoryData(false);
   }
   if (contractorTab === 'licenses') renderBusinessLicenseStatus();
 };
@@ -11225,18 +11325,39 @@ function gsWeatherLabel(code) {
   if (code >= 2) return '흐림';
   return '맑음';
 }
+document.getElementById('fieldPendingList').addEventListener('click', event => {
+  const button = event.target.closest('[data-field-company]');
+  if (button) openFieldCompanies('all', button.dataset.fieldCompany);
+});
+
+function renderFieldInbox() {
+  const list = document.getElementById('fieldPendingList');
+  const ready = fieldDataReady.size === 3 || Boolean(getDevPreviewPage());
+  const received = new Set(msdsRecords.filter(msdsReceived).map(row => row.contractor));
+  const licensed = new Set(businessLicenses.map(row => row.contractor_id));
+  const missingMsds = contractors.filter(c => !received.has(c.name));
+  const missingLicense = contractors.filter(c => !licensed.has(c.id));
+  document.getElementById('fieldMsdsCount').textContent = ready ? missingMsds.length + '개사' : '—';
+  document.getElementById('fieldLicenseCount').textContent = ready ? missingLicense.length + '개사' : '—';
+  if (!ready) {
+    list.textContent = '서류 현황 조회 대기';
+    return;
+  }
+  const pending = contractors.filter(c => !received.has(c.name) || !licensed.has(c.id));
+  if (!pending.length) {
+    list.textContent = contractors.length ? '모든 협력사의 서류가 접수되었습니다.' : '등록된 협력사가 없습니다.';
+    return;
+  }
+  list.innerHTML = pending.slice(0, 4).map(c => {
+    const missing = [!received.has(c.name) && 'MSDS 미수령', !licensed.has(c.id) && '등록증 미제출'].filter(Boolean);
+    return `<div class="field-company"><button type="button" class="field-company-link" data-field-company="${escapeHtml(c.id)}">${escapeHtml(c.name)}</button><span>${missing.join(' · ')}</span></div>`;
+  }).join('');
+}
+
 function renderGsHome() {
   pmxPanel.render();
   pmxPanel.applyLatest();
-  const name =
-    profile?.name ||
-    user?.user_metadata?.name ||
-    user?.email?.split('@')[0] ||
-    '관리자';
-  document.getElementById('gsGreeting').textContent =
-    `${name}님,\n오늘 하루도 좋은 하루 되세요!`;
-  document.getElementById('gsSiteName').textContent =
-    currentWS?.name || '현장 홈';
+  renderFieldInbox();
   document.getElementById('gsPreviewLabel').textContent = getDevPreviewPage()
     ? '미리보기 · 예시 데이터'
     : '';

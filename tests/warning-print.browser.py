@@ -8,6 +8,7 @@ from pathlib import Path
 
 import fitz
 from PIL import Image
+from print_fixture import keep_print_document
 from playwright.async_api import async_playwright
 import zxingcpp
 
@@ -22,6 +23,7 @@ async def main():
             args=['--no-sandbox'],
         )
         page = await browser.new_page(viewport={'width': 1600, 'height': 1000})
+        await keep_print_document(page)
         await page.goto(f'{url}/?preview=warning')
         await page.wait_for_selector('#warnPrintSelectedBtn:not([disabled])')
         for size, per_page in [('a4', 1), ('a5', 2), ('a6', 4), ('mini', 8)]:

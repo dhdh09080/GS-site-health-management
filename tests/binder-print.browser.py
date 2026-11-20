@@ -1,9 +1,11 @@
 import asyncio
+from print_fixture import keep_print_document
 from playwright.async_api import async_playwright
 async def main():
  async with async_playwright() as p:
   b=await p.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox'])
   page=await b.new_page(viewport={'width':1500,'height':1100});errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+  await keep_print_document(page)
   await page.goto('http://127.0.0.1:3002/?preview=binders');await page.wait_for_selector('[data-code="SR-A-03"]')
   assert await page.locator('.binder-row').count()==40
   assert await page.locator('#binderCategories button').count()==9
@@ -13,7 +15,7 @@ async def main():
    await page.select_option(f'[data-width-code="{code}"]',width);await page.locator('#binderSearch').focus();await page.locator(f'[data-code="{code}"]').check()
   assert await page.locator('#binderFontNotice').count()==0
   assert (await page.locator('#nav-binders').inner_text()).strip().endswith('바인더 표지')
-  assert await page.locator('.more-item-label',has_text='바인더 표지').count()==1
+  assert await page.locator('#moreSheet [data-menu-page="binders"] .menu-item-label',has_text='바인더 표지').count()==1
   assert await page.locator('#page-binders .page-title').inner_text()=='바인더 표지'
   await page.wait_for_selector('#binderPrint:not([disabled])')
   assert not await page.locator('#binderPrint').is_disabled()

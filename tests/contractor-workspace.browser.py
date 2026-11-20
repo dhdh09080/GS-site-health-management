@@ -74,7 +74,8 @@ async def main():
   await page.goto(BASE+'/upload.html?token=workspace-fixture-token')
   await page.locator('#dashboardPanel').wait_for(state='visible')
   await page.locator('#dashboardContact a').wait_for()
-  assert '대한건설, 오늘 하루도 좋은 하루 되세요!' in await page.locator('#dashboardPanel').inner_text()
+  assert await page.get_by_role('button', name='MSDS 파일 제출', exact=True).is_visible()
+  assert '대한건설' in await page.locator('#headerWS').inner_text()
   assert await page.get_by_role('tablist').count()==0
   assert await page.locator('#contractorWorkspaceSidebar button[data-workspace-nav]').count()==8
   await page.screenshot(path=str(OUT/'dashboard-desktop.png'),full_page=True)

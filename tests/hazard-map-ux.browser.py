@@ -38,7 +38,7 @@ async def main():
    if u.path.endswith('/hazard_location_photos'):return await route.fulfill(json=[])
    return await route.fulfill(json=[])
   await page.route('**/*.supabase.co/**',api)
-  await page.goto(BASE+'/?preview=hazard-map');await page.locator('.hm-storage-card').nth(5).wait_for()
+  await page.goto(BASE+'/?preview=hazard-map');await page.locator('.hm-storage-card').nth(4).wait_for()
   assert await page.locator('[data-location-id=m3] .hm-review-status').count()==0
   assert await page.locator('[data-location-id=m4] .hm-review-status').count()==0
   assert await page.locator('[data-count=all]').inner_text()=='3'
@@ -56,8 +56,8 @@ async def main():
   await page.locator('#hmClearFilters').click()
   await page.locator('#hmTypeFilter').select_option('warehouse');assert '창고' in await page.locator('.hm-storage-card').inner_text()
   await page.locator('#hmContractorFilter').select_option('con-3');assert await page.locator('.hm-storage-card').count()==0
-  await page.locator('[data-action=clear-filters]').click();assert await page.locator('.hm-storage-card').count()==6
-  await page.locator('#hmContractorFilter').select_option('unassigned');assert await page.locator('.hm-storage-card h3').inner_text()=='정문'
+  await page.locator('[data-action=clear-filters]').click();assert await page.locator('.hm-storage-card').count()==5
+  await page.locator('#hmContractorFilter').select_option('unassigned');assert await page.locator('.hm-pin.hm-type-gate').count()==1 and await page.locator('.hm-storage-card').count()==0
   await page.locator('#hmClearFilters').click()
   await page.locator('#hmSearch').press_sequentially('PIT',delay=45)
   assert await page.locator('#hmSearch').evaluate('e=>document.activeElement===e')
@@ -66,7 +66,7 @@ async def main():
   await page.locator('#hmSearch').fill('없는 위치');assert '조건에 맞는 위치가 없습니다' in await page.locator('.hm-list-empty').inner_text()
   await page.locator('#hmMapSelect').select_option('second');assert await page.locator('#hmSearch').input_value()==''
   assert await page.locator('.hm-storage-card').count()==0
-  await page.locator('#hmMapSelect').select_option('plan');await page.locator('.hm-storage-card').nth(5).wait_for()
+  await page.locator('#hmMapSelect').select_option('plan');await page.locator('.hm-storage-card').nth(4).wait_for()
   await page.locator('[data-quick-status=verified]').click();assert '안전팀 확인 완료' in await page.locator('.hm-review-note').inner_text()
   await page.locator('[data-quick-status=pending]').click()
   for width in [360,390,768,1440]:
@@ -74,10 +74,10 @@ async def main():
    assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth'),width
    await page.evaluate('scrollTo(0,0)')
    await page.screenshot(path=str(OUT/f'overview-{width}.png'),full_page=True)
-  # Both directions between common map pins and cards respond without exposing editing.
+  # Common gates are map-only. Managed locations link from their cards to the map.
   await page.locator('#hmClearFilters').click()
-  await page.locator('[data-location-id=m4] [data-action=locate]').click()
-  assert await page.locator('.hm-storage-card.is-highlighted h3').inner_text()=='정문'
+  await page.locator('[data-location-id=m3] [data-action=locate]').click()
+  assert await page.locator('.hm-storage-card.is-highlighted h3').inner_text()=='지하 자재 창고'
   await page.locator('#hmTypeFilter').select_option('memo')
   await page.locator('[data-action=add]').click()
   form=page.locator('#hmMarkerForm')

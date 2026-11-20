@@ -1,5 +1,6 @@
 """Partner-link manager signs; synthetic RPC fixtures, no production writes."""
 import asyncio, json, os
+from print_fixture import keep_print_document
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get('BASE_URL', 'http://localhost:3004')
@@ -9,6 +10,7 @@ async def main():
  async with async_playwright() as p:
   browser = await p.chromium.launch(executable_path='/usr/bin/chromium', args=['--no-sandbox'])
   page = await browser.new_page(viewport={'width':1600,'height':1100})
+  await keep_print_document(page)
   errors=[]; requests=[]
   page.on('pageerror', lambda e: errors.append(str(e)))
   async def api(route):

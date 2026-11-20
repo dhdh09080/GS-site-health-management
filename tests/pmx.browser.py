@@ -21,7 +21,7 @@ async def main():
   await page.route('https://*.supabase.co/**',api)
   await page.goto('http://localhost:3000/?preview=pmx')
   panel=page.locator('#pmxDashboard')
-  await panel.get_by_role('button',name='정보 가져오기').wait_for()
+  await panel.get_by_role('button',name='업데이트하기').wait_for()
   assert await panel.locator('#pmxMore').get_attribute('open') is None
   assert '60.5%' in await panel.inner_text()
   assert '아직 업데이트 전' in await panel.inner_text()
