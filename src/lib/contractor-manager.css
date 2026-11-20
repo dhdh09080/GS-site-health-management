@@ -52,3 +52,10 @@
 .con-editor-footer{display:flex;justify-content:flex-end;padding:16px 24px max(16px,env(safe-area-inset-bottom));border-top:1px solid #e8ebef;background:#fff}.con-editor-footer button{min-height:44px;font-size:14px}
 @media(max-width:1280px){.con-table-scroll-hint{display:block;color:#87909c;font-size:12px;margin:0 0 10px}}
 @media(max-width:768px){#page-contractors .content-scroll{padding:18px 14px}#page-contractors .card:has(#conMgrList){padding:16px 12px}#page-contractors .contractor-toolbar{flex-wrap:wrap}#page-contractors .contractor-search-main{flex-basis:100%}#page-contractors #conMgrSearch{font-size:16px}#page-contractors #conMgrFilter{width:100%;font-size:16px}#page-contractors #gsContractorTabs{gap:22px;white-space:nowrap}#page-contractors #gsContractorTabs button{font-size:14px;min-height:44px;padding-bottom:10px}.con-management-table{min-width:1080px}#conMgrList .contractor-row>th{position:sticky;left:0;z-index:1;box-shadow:1px 0 #e4e7ec}.con-management-table thead th:first-child{position:sticky;left:0;z-index:2}.con-company-name{font-size:15px}.con-usage input{width:44px;height:44px;top:0}.con-row-actions .btn,.con-more-button,.con-msds-link,.con-license-link{min-height:44px}.con-more-button{min-width:44px}.con-editor{width:100%}.con-editor-header,.con-editor-body{padding:20px}.con-editor input{font-size:16px!important}.con-editor-header h2{font-size:20px}}
+
+/* On phones a fixed company column can cover the action buttons even at the end of the row. */
+@media (max-width: 480px) {
+  #conMgrList .contractor-row > th,
+  .con-management-table thead th:first-child { position: static; box-shadow: none; }
+  #page-contractors .content-scroll { scroll-padding-bottom: 80px; }
+}

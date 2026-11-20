@@ -2,7 +2,7 @@
 import asyncio, json, os
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, expect
 BASE=os.environ.get('BASE_URL','http://localhost:3007')
 OUT=Path('work/contractor-manager')
 async def main():
@@ -58,7 +58,7 @@ async def main():
   await page.evaluate('refreshContractorDirectoryData()')
   assert await page.locator('#conMgrList .contractor-row').count()==3
   assert await page.locator('#conMgrList thead th').all_text_contents()==['협력사','담당자 · 연락처','공종','MSDS','사업자등록증','사용 여부','관리']
-  assert not await page.locator('#siteDirectoryCard').is_visible()
+  assert await page.locator('#siteDirectoryCard').is_visible()
   await page.locator('#conMgrSearch').fill('홍길동');assert await page.locator('#conMgrList .contractor-row').count()==1
   await page.locator('#conMgrSearch').fill('1234');assert await page.locator('#conMgrList .contractor-row').count()==1
   await page.locator('#conMgrSearch').fill('')
@@ -66,11 +66,11 @@ async def main():
    await page.locator('#conMgrFilter').select_option(value);assert await page.locator('#conMgrList .contractor-row').count()==count
   await page.screenshot(path=str(OUT/'table-desktop.png'),full_page=True)
   usage=page.get_by_role('switch',name='대한건설 사용 여부')
-  await usage.uncheck();await page.get_by_text('사용 여부 저장 실패: 테스트 상태 실패',exact=False).wait_for()
-  assert await usage.is_checked()
-  await usage.uncheck();await page.wait_for_function('document.querySelector(".con-usage input").checked===false')
+  await usage.click();await page.get_by_text('사용 여부 저장 실패: 테스트 상태 실패',exact=False).wait_for()
+  await expect(usage).to_be_checked()
+  await usage.click();await expect(usage).to_be_enabled();await expect(usage).not_to_be_checked()
   assert companies[0]['is_active']==False
-  await usage.check();await page.wait_for_function('document.querySelector(".con-usage input").checked===true')
+  await usage.click();await expect(usage).to_be_enabled();await expect(usage).to_be_checked()
   await page.get_by_role('button',name='대한건설 정보 수정',exact=True).click()
   await page.locator('#conEditManager').fill('김관리')
   await page.locator('#conEditPhone').fill('010-9999-8888')

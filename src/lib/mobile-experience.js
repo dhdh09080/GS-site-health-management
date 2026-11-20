@@ -134,7 +134,6 @@ export function installMobileExperience({getWarningCount, refreshWarningPreview,
       const count = ['filterWorkType','filterStatus','filterSpecial'].filter(id => document.getElementById(id).value).length + (window.selectedContractor ? 1 : 0);
       filters.querySelector('summary').textContent = count ? `필터 ${count}개 적용 · 변경하기` : '필터 · 업체 / 공종 / 상태';
     },
-    revealContractorTools() { const el = document.getElementById('mobileContractorTools'); if (el) el.open = true; },
     refreshWarning,
     openWarning() { step = 1; refreshWarning(); },
   };

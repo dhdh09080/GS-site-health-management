@@ -263,22 +263,23 @@
 <div class="page-title" id="homeTitle">현장 홈</div>
 <div class="page-subtitle" id="homeDate"></div>
 </div>
+<span class="gs-context">GS HEALTH &amp; SITE</span>
 </div>
 <div class="content-scroll gs-home">
-<section class="field-inbox" aria-labelledby="gsGreeting">
-<div class="field-section-head"><div><p id="gsPreviewLabel"></p><h1 id="gsGreeting">협력사 서류 현황</h1></div>
-<button class="btn btn-secondary" onclick="openFieldCompanies('all')">전체 업체 보기</button></div>
-<div class="field-counts">
-<button onclick="openFieldCompanies('missing-msds')">MSDS 미수령 <strong id="fieldMsdsCount">—</strong></button>
-<button onclick="openFieldCompanies('missing-license')">등록증 미제출 <strong id="fieldLicenseCount">—</strong></button>
+<section class="gs-welcome">
+<div class="gs-eyebrow">매일의 건강한 현장을 위해</div>
+<h1 id="gsGreeting">오늘 하루도 좋은 하루 되세요!</h1>
+<p>날씨를 살피고, 오늘 현장에 필요한 보건 관리를 시작하세요.</p>
+<div class="gs-welcome-bottom">
+<span id="gsSiteName"></span>
+<span id="gsPreviewLabel"></span>
 </div>
-<div id="fieldPendingList" aria-live="polite">서류 현황을 불러오는 중입니다.</div>
 </section>
 <div class="gs-home-grid">
 <section class="card gs-week-card">
 <div class="gs-section-head">
 <div>
-
+<div class="gs-eyebrow">WEEKLY WEATHER</div>
 <h2>이번 주 현장 날씨</h2>
 </div>
 <button class="btn btn-outline btn-sm" onclick="showPage('weather')">
@@ -289,7 +290,7 @@
 <p class="gs-weather-source" id="gsWeatherSource"></p>
 </section>
 <section class="card gs-season-card">
-
+<div class="gs-eyebrow">SEASONAL CARE</div>
 <h2 id="gsSeasonTitle">계절별 보건 관리</h2>
 <div id="gsSeasonChecks"></div>
 </section>
@@ -1093,7 +1094,7 @@
                   </button>
 </div>
 </div>
-<div class="wx-view-tabs" role="tablist" aria-label="날씨 보기"><button type="button" id="wxView-poster" role="tab" aria-controls="wxPanel-poster" aria-selected="true" tabindex="0" onclick="setWeatherView('poster')" onkeydown="weatherViewKeydown(event)">건강관리 포스터</button><button type="button" id="wxView-hourly" role="tab" aria-controls="wxPanel-hourly" aria-selected="false" tabindex="-1" onclick="setWeatherView('hourly')" onkeydown="weatherViewKeydown(event)">시간별 그래프</button><button type="button" id="wxView-forecast" role="tab" aria-controls="wxPanel-forecast" aria-selected="false" tabindex="-1" onclick="setWeatherView('forecast')" onkeydown="weatherViewKeydown(event)">상세 예보</button><button type="button" id="wxView-observations" role="tab" aria-controls="wxPanel-observations" aria-selected="false" tabindex="-1" onclick="setWeatherView('observations')" onkeydown="weatherViewKeydown(event)">현재 관측</button><button type="button" id="wxView-archive" role="tab" aria-controls="wxPanel-archive" aria-selected="false" tabindex="-1" onclick="setWeatherView('archive')" onkeydown="weatherViewKeydown(event)">보관함</button></div>
+<div class="wx-view-tabs" role="tablist" aria-label="날씨 보기"><button type="button" id="wxView-poster" role="tab" aria-controls="wxPanel-poster" aria-selected="true" tabindex="0" onclick="setWeatherView('poster')" onkeydown="weatherViewKeydown(event)">건강관리 포스터</button><button type="button" id="wxView-hourly" role="tab" aria-controls="wxPanel-hourly" aria-selected="false" tabindex="-1" onclick="setWeatherView('hourly')" onkeydown="weatherViewKeydown(event)">시간별 그래프</button><button type="button" id="wxView-forecast" role="tab" aria-controls="wxPanel-forecast" aria-selected="false" tabindex="-1" onclick="setWeatherView('forecast')" onkeydown="weatherViewKeydown(event)">상세 예보</button><button type="button" id="wxView-observations" role="tab" aria-controls="wxPanel-observations" aria-selected="false" tabindex="-1" onclick="setWeatherView('observations')" onkeydown="weatherViewKeydown(event)">현재 관측</button><button type="button" id="wxView-advisories" role="tab" aria-controls="wxPanel-advisories" aria-selected="false" tabindex="-1" onclick="setWeatherView('advisories')" onkeydown="weatherViewKeydown(event)">기상특보</button><button type="button" id="wxView-archive" role="tab" aria-controls="wxPanel-archive" aria-selected="false" tabindex="-1" onclick="setWeatherView('archive')" onkeydown="weatherViewKeydown(event)">보관함</button></div>
 <div id="wxPanel-poster" class="wx-view-panel" role="tabpanel" aria-labelledby="wxView-poster" tabindex="0"><div class="card" style="margin-bottom: 14px">
 <div class="dash-section-header">
 <div class="dash-section-title">오늘의 건강관리 포스터</div>
@@ -1130,6 +1131,10 @@
 <p class="wx-detail-note">현장과 가까운 기상청 AWS·ASOS 관측소 자료입니다. 현장 직접 측정값과 차이가 있을 수 있습니다. 강수확률과 미래 날씨는 상세 예보 탭을 확인하세요.</p>
 <div id="wxObservationBody" aria-live="polite"><p class="wx-detail-message">관측자료를 불러오는 중입니다…</p></div>
 </section>
+</div>
+<div id="wxPanel-advisories" class="wx-view-panel" role="tabpanel" aria-labelledby="wxView-advisories" tabindex="0" hidden>
+<section class="card" aria-labelledby="wxAdvisoryTitle"><div class="gs-section-head"><h2 id="wxAdvisoryTitle">전국 기상특보 현황</h2><a class="btn btn-outline" href="https://www.weather.go.kr/w/special-report/overall.do" target="_blank" rel="noopener noreferrer">기상청 원문</a></div>
+<p class="wx-detail-note">특보에 기재된 지역에 현장이 포함되는지 확인하세요.</p><div id="wxAdvisoryBody" aria-live="polite"></div></section>
 </div>
 <div id="wxPanel-archive" class="wx-view-panel" role="tabpanel" aria-labelledby="wxView-archive" tabindex="0" hidden><section class="card wx-archive-details">
 
@@ -1593,7 +1598,7 @@
 </div>
 <div class="content-scroll">
 <section class="card site-directory-card" id="siteDirectoryCard" aria-labelledby="directoryShareTitle">
-<div class="directory-share-heading"><div><span class="directory-share-eyebrow">협력사 공유 링크</span><h2 id="directoryShareTitle">현장 전체 협력사 리스트</h2></div><span id="siteDirectoryBadge" class="directory-share-badge">미발급</span></div>
+<div class="directory-share-heading"><div><span class="directory-share-eyebrow">협력사 공유 링크</span><h2 id="directoryShareTitle" tabindex="-1">현장 전체 협력사 리스트</h2></div><span id="siteDirectoryBadge" class="directory-share-badge">미발급</span></div>
 <p class="directory-share-description">협력사 목록, MSDS·사업자등록증 제출 현황과 담당자 연락처를 한곳에서 확인하세요.</p>
 <div id="siteDirectoryLinkState" aria-live="polite"></div>
 <div class="site-directory-actions"><button id="siteDirectoryGenerate" class="btn btn-primary" onclick="generateSiteDirectoryLink()">공유 링크 만들기 · 3년 유효</button><button id="siteDirectoryExtend" class="btn btn-secondary" onclick="extendSiteDirectoryLink()" hidden>유효기간 연장 · 주소 유지</button><button id="siteDirectoryRegenerate" class="btn btn-secondary" onclick="regenerateSiteDirectoryLink()" hidden>새 링크로 재생성</button><button id="siteDirectoryRevoke" class="btn btn-danger" onclick="revokeSiteDirectoryLink()" hidden>링크 삭제</button><button class="btn btn-secondary" onclick="refreshContractorDirectoryData()">목록 새로고침</button></div>

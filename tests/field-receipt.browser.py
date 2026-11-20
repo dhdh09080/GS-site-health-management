@@ -26,9 +26,10 @@ async def main():
     fail_storage = True
     fail_receipt = True
     expired = False
+    advisories_requested = 0
 
     async def backend(route):
-        nonlocal fail_receipt, fail_storage
+        nonlocal fail_receipt, fail_storage, advisories_requested
         request = route.request
         url = urlsplit(request.url)
         if url.hostname == urlsplit(BASE).hostname:
@@ -48,6 +49,13 @@ async def main():
             jwt = '.'.join(base64.urlsafe_b64encode(json.dumps(v).encode()).decode().rstrip('=') for v in parts)
             return await route.fulfill(json=dict(access_token=jwt, refresh_token='fixture',
                                                 expires_in=3600, token_type='bearer', user=USER))
+        if name == 'site-weather' and request.post_data_json.get('action') == 'advisories':
+            advisories_requested += 1
+            if advisories_requested == 1:
+                return await route.fulfill(status=503, json={'error': '기상청 연결이 지연되고 있습니다.'})
+            return await route.fulfill(json={'result': {
+                'checkedAt': '2026-10-19T01:00:00Z', 'report': {'issuedAt': '2026-10-19T09:00:00+09:00',
+                'active': '가상지역 강풍주의보', 'preliminary': '가상지역 호우 예비특보'}}})
         if name == 'get_contractor_portal':
             if expired:
                 return await route.fulfill(status=400, json={'message': 'invalid or expired upload token'})
@@ -135,8 +143,11 @@ async def main():
         await manager.locator('#loginBtn').click()
         for width, height in [(1366, 768), (1920, 1080)]:
             await manager.set_viewport_size(dict(width=width, height=height))
-            await manager.locator('#fieldMsdsCount').get_by_text('30개사').wait_for()
-            await manager.get_by_role('button', name='등록증 미제출 31개사').click()
+            await manager.locator('#page-home.active #gsGreeting').wait_for()
+            await manager.locator('#gsSiteName').get_by_text(SITE['name'], exact=True).wait_for()
+            await manager.screenshot(path=str(OUT/f'home-restored-{width}.png'))
+            await manager.locator('#nav-contractors').click()
+            await manager.locator('#conMgrFilter').select_option('missing-license')
             await manager.locator('#conMgrSearch').fill('기계설비')
             await manager.locator('#companyNext').click()
             row = manager.locator('#conMgrList .contractor-row')
@@ -169,7 +180,22 @@ async def main():
             await manager.locator('#toastWrap .toast').last.wait_for(state='detached')
             await manager.screenshot(path=str(OUT/f'manager-{width}.png'))
             await manager.reload(wait_until='commit')
-            await manager.locator('#fieldMsdsCount').get_by_text('30개사').wait_for()
+            await manager.locator('#page-home.active #gsGreeting').wait_for()
+        await manager.locator('#nav-weather').click()
+        await manager.get_by_role('tab', name='기상특보', exact=True).click()
+        advisory = manager.locator('#wxAdvisoryBody')
+        await advisory.get_by_role('alert').wait_for()
+        assert '특보 없음' not in await advisory.inner_text()
+        await advisory.get_by_role('button', name='다시 조회').click()
+        await advisory.get_by_text('가상지역 강풍주의보', exact=True).wait_for()
+        assert '가상지역 호우 예비특보' in await advisory.inner_text()
+        assert advisories_requested == 2
+        for width, height in [(390, 844), (1366, 768), (1920, 1080)]:
+            await manager.set_viewport_size(dict(width=width, height=height))
+            assert not await manager.locator('#page-weather .wx-site-card').is_visible()
+            assert await manager.locator('#wxView-advisories').evaluate('e => e.getBoundingClientRect().right <= innerWidth')
+            assert await manager.evaluate('document.documentElement.scrollWidth <= innerWidth')
+            await manager.screenshot(path=str(OUT/f'weather-advisories-{width}.png'))
         expired = True
         await picker.set_input_files(dict(name=NAME, mimeType='application/pdf', buffer=pdf))
         await portal.locator('#uploadBtn').click()
@@ -179,10 +205,10 @@ async def main():
         assert len(records) == len(objects) == 1
         assert not diagnostics and not failed_requests, (diagnostics, failed_requests)
         assert sorted(http_errors) == sorted([(inserts[0] + '.pdf',400), ('msds_records',400), ('msds_records',504), ('msds_records',403),
-                                              ('get_contractor_portal',400), ('get_contractor_portal',400)]), http_errors
+                                              ('get_contractor_portal',400), ('get_contractor_portal',400), ('site-weather',503)]), http_errors
         assert all(msg.startswith('Failed to load resource') for msg in console_errors), console_errors
         print('PASS: both roles, same original, refresh, duplicate click, rejected insert, committed response loss,')
-        print('receipt edit denied then saved, expired link, viewport fit; only six injected HTTP errors.')
+        print('receipt edit denied then saved, expired link, viewport fit; advisory failure/retry, only seven injected HTTP errors.')
         await browser.close()
 
 asyncio.run(main())

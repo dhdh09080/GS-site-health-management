@@ -402,7 +402,7 @@ The Home “날씨 자세히” button and desktop/mobile “날씨” tab open 
 calendar with hourly temperature, humidity, rain probability/amount, wind speed
 (m/s) and direction. Heat posters remain available below the detailed forecast.
 
-Deploy `supabase/functions/site-weather` including `detailed.ts` and `lib/forecast.js`.
+Deploy the complete `supabase/functions/site-weather` directory.
 Set the **server-side** Supabase function secret `KMA_SERVICE_KEY` to a public-data
 portal service key authorized for 기상청 단기예보 조회서비스 (`getVilageFcst`).
 Never put this key in a `VITE_` variable. The function converts the saved site
@@ -447,10 +447,22 @@ codes. Negative temperatures are retained; missing humidity, rain and wind value
 remain null. AWS 60-minute rain is not substituted with ASOS rain of an unknown
 accumulation period. Readings appear separately from forecast rain probability.
 
+When both station feeds are unavailable, the observations panel tries the site grid
+using `getUltraSrtNcst` from the same public-data short-term forecast service.
+The panel labels grid readings and shows their observation time in Korea.
+
+### Official weather advisories
+
+The 기상특보 tab calls the Edge Function with `action: advisories`. The function
+uses the server-side `KMA_SERVICE_KEY` for the nationwide `getPwnStatus` bulletin.
+The key also needs access to [기상청 기상특보 조회서비스](https://www.data.go.kr/data/15000415/openapi.do).
+The panel displays the issued and retrieved times, affected areas, active warnings
+and preliminary warnings as supplied by KMA. Empty or failed responses offer a retry.
+
 ### Seasonal health posters and weather views
 
-Weather opens a compact five-tab workspace: health poster, hourly chart, detailed
-forecast (7 days by default), observations, and archive. Tabs request data when
+Weather opens a six-tab workspace: health poster, hourly chart, detailed
+forecast (7 days by default), observations, official advisories, and archive. Tabs request data when
 selected; poster and hourly chart share their forecast. Keyboard arrows/Home/End
 navigate the tab list. Hidden panels do not contribute to page height.
 

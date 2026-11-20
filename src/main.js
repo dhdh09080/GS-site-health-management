@@ -13,7 +13,7 @@ import { createHazardMap } from './lib/hazard-map.js';
 import { posterLocale, localizeAdvice, localizeAlert, posterDateTitle } from './lib/weather-poster-i18n.js';
 import { createWarningRenderer } from './lib/warning-print.js';
 import { weatherAlertsHtml, A4_POSTER, buildHealthPosterSvg, hourlyWeatherHtml, posterModel, kstDate, riskMetric } from './lib/weather-poster.js';
-import { loadWeatherDetail, loadWeatherObservations } from './lib/weather-detail.js';
+import { loadWeatherAdvisories, loadWeatherDetail, loadWeatherObservations } from './lib/weather-detail.js';
 import { labelSafetySections } from './lib/warning-label.js';
 import {
   supabase,
@@ -108,7 +108,6 @@ let businessLicenses = [];
 const MSDS_PAGE_SIZE = 30;
 let msdsPage = 1;
 let contractorListOrigin = null;
-const fieldDataReady = new Set();
 let workspaceLoadVersion = 0;
 let workspaceReadPending = 0;
 let workspaceReadSlow = false;
@@ -959,7 +958,6 @@ function resetWorkspaceScopedState() {
   hazardMap.reset();
   contractorListOrigin = null;
   document.getElementById('msdsReturn').hidden = true;
-  fieldDataReady.clear();
   companyPage = 1;
   contractorFilter = 'all';
   document.getElementById('conMgrSearch').value = '';
@@ -1847,10 +1845,7 @@ window.showPage = function (id) {
   if (id === 'msds') { renderContractorSidebar(); renderMsdsTable(msdsPage); }
   else { contractorListOrigin = null; document.getElementById('msdsReturn').hidden = true; }
   if (id === 'requests') renderMsdsRequests();
-  if (id === 'contractors') {
-    switchContractorTab(linksRequested ? 'links' : contractorTab);
-    if (linksRequested) mobileExperience.revealContractorTools();
-  }
+  if (id === 'contractors') switchContractorTab(linksRequested ? 'links' : contractorTab);
   if (id === 'warning') {
     mobileExperience.openWarning();
     renderWarnPickList();
@@ -2902,10 +2897,8 @@ async function loadContractors() {
     .eq('workspace_id', workspaceId)
     .order('created_at');
   if (currentWS?.id !== workspaceId) return;
-  if (error) { fieldDataReady.delete('협력사'); renderFieldInbox(); return { error }; }
+  if (error) return { error };
   contractors = data || [];
-  fieldDataReady.add('협력사');
-  renderFieldInbox();
   renderContractorTags();
   populateContractorSelects();
   renderSiteDirectoryLink();
@@ -3205,17 +3198,8 @@ document.getElementById('msdsReturn').addEventListener('click', () => {
   if (contractorListOrigin) showPage(contractorListOrigin);
 });
 
-window.openFieldCompanies = function (filter, id) {
-  document.getElementById('conMgrSearch').value = contractors.find(c => c.id === id)?.name || '';
-  contractorTab = 'companies';
-  showPage('contractors');
-  setContractorFilter(filter);
-};
-
 window.focusSiteContractorDirectory = function () {
-  showPage('contractors');
-  switchContractorTab('links');
-  document.getElementById('siteDirectoryCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showPage('upload-link');
 };
 
 window.scrollToBusinessLicenses = function () {
@@ -3687,10 +3671,8 @@ async function loadMsdsRecords() {
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false });
   if (currentWS?.id !== workspaceId) return;
-  if (error) { fieldDataReady.delete('MSDS'); renderFieldInbox(); throw error; }
+  if (error) throw error;
   msdsRecords = data || [];
-  fieldDataReady.add('MSDS');
-  renderFieldInbox();
   updateStats();
   renderMsdsTable(msdsPage);
   renderHomeDashboard();
@@ -7942,10 +7924,8 @@ async function loadBusinessLicenses() {
     .select('*, contractor:contractor_id(name)')
     .eq('workspace_id', workspaceId);
   if (currentWS?.id !== workspaceId) return;
-  if (error) { fieldDataReady.delete('사업자등록증'); renderFieldInbox(); return { error }; }
+  if (error) return { error };
   businessLicenses = data || [];
-  fieldDataReady.add('사업자등록증');
-  renderFieldInbox();
   renderBusinessLicenseStatus();
   renderLicenseAlert();
   renderContractorTags();
@@ -10014,9 +9994,10 @@ window.setWxSeasonMode = function (mode) {
 };
 
 window.setWeatherView = function (view) {
-  const views = ['poster', 'hourly', 'forecast', 'observations', 'archive'];
+  const views = ['poster', 'hourly', 'forecast', 'observations', 'advisories', 'archive'];
   if (!views.includes(view)) return;
   wxWeatherView = view;
+  document.querySelector('#page-weather .wx-site-card').hidden = view === 'advisories';
   views.forEach(key => {
     const active = key === view;
     const button = document.getElementById('wxView-' + key);
@@ -10053,6 +10034,7 @@ window.loadWeatherPage = async function (force) {
   const view = wxWeatherView;
   if (wxViewLoaded.has(view)) return;
   const options = { workspace: currentWS, invoke: invokeEdgeJson, preview: !!getDevPreviewPage(), weatherIcon: gsWeatherIcon, weatherLabel: gsWeatherLabel };
+  if (view === 'advisories') { await loadWeatherAdvisories(options); return; }
   if (view === 'forecast') { await loadWeatherDetail(options); if (key === wxViewKey) wxViewLoaded.add(view); return; }
   if (view === 'observations') { await loadWeatherObservations(options); if (key === wxViewKey) wxViewLoaded.add(view); return; }
   if (view === 'archive') { await loadWxPosters(); if (key === wxViewKey) wxViewLoaded.add(view); return; }
@@ -10898,19 +10880,20 @@ function msdsReceived(record) {
 function mountGsWorkspace() {
   const content = document.querySelector('#page-contractors > .content-scroll');
   if (!content || document.getElementById('gsContractorTabs')) return;
-  const originals = [...content.children];
+  const share = document.getElementById('siteDirectoryCard');
+  const originals = [...content.children].filter(child => child !== share);
   const tabs = document.createElement('div');
   tabs.id = 'gsContractorTabs';
   tabs.className = 'gs-tabs';
   tabs.setAttribute('role', 'tablist');
-  tabs.innerHTML = ['companies', 'licenses', 'links']
+  tabs.innerHTML = ['companies', 'licenses']
     .map(
       (id, i) =>
-        `<button role="tab" id="gs-tab-${id}" aria-controls="gs-con-${id}" onclick="switchContractorTab('${id}')">${['협력사 관리', '사업자등록증', '공유 링크'][i]}</button>`,
+        `<button role="tab" id="gs-tab-${id}" aria-controls="gs-con-${id}" onclick="switchContractorTab('${id}')">${['협력사 관리', '사업자등록증'][i]}</button>`,
     )
     .join('');
-  content.prepend(tabs);
-  ['companies', 'licenses', 'links'].forEach((id) => {
+  share.after(tabs);
+  ['companies', 'licenses'].forEach((id) => {
     const pane = document.createElement('div');
     pane.id = 'gs-con-' + id;
     pane.setAttribute('role', 'tabpanel');
@@ -10920,7 +10903,7 @@ function mountGsWorkspace() {
   originals.forEach((el) =>
     document
       .getElementById(
-        el.id === 'businessLicenseCard' ? 'gs-con-licenses' : el.id === 'siteDirectoryCard' ? 'gs-con-links' : 'gs-con-companies',
+        el.id === 'businessLicenseCard' ? 'gs-con-licenses' : 'gs-con-companies',
       )
       .appendChild(el),
   );
@@ -10969,10 +10952,15 @@ function gsIcon(index) {
 }
 
 window.switchContractorTab = function (tab) {
-  contractorTab = ['companies', 'licenses', 'links'].includes(tab)
+  if (tab === 'links') {
+    document.getElementById('directoryShareTitle').focus({preventScroll: true});
+    document.getElementById('siteDirectoryCard').scrollIntoView({block: 'start'});
+    tab = 'companies';
+  }
+  contractorTab = ['companies', 'licenses'].includes(tab)
     ? tab
     : 'companies';
-  ['companies', 'licenses', 'links'].forEach((id) => {
+  ['companies', 'licenses'].forEach((id) => {
     const pane = document.getElementById('gs-con-' + id),
       button = document.getElementById('gs-tab-' + id);
     if (pane) pane.hidden = id !== contractorTab;
@@ -10983,7 +10971,7 @@ window.switchContractorTab = function (tab) {
       button.onkeydown = (e) => {
         if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
           e.preventDefault();
-          const ids = ['companies', 'licenses', 'links'];
+          const ids = ['companies', 'licenses'];
           switchContractorTab(
             ids[(ids.indexOf(id) + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length],
           );
@@ -11325,39 +11313,18 @@ function gsWeatherLabel(code) {
   if (code >= 2) return '흐림';
   return '맑음';
 }
-document.getElementById('fieldPendingList').addEventListener('click', event => {
-  const button = event.target.closest('[data-field-company]');
-  if (button) openFieldCompanies('all', button.dataset.fieldCompany);
-});
-
-function renderFieldInbox() {
-  const list = document.getElementById('fieldPendingList');
-  const ready = fieldDataReady.size === 3 || Boolean(getDevPreviewPage());
-  const received = new Set(msdsRecords.filter(msdsReceived).map(row => row.contractor));
-  const licensed = new Set(businessLicenses.map(row => row.contractor_id));
-  const missingMsds = contractors.filter(c => !received.has(c.name));
-  const missingLicense = contractors.filter(c => !licensed.has(c.id));
-  document.getElementById('fieldMsdsCount').textContent = ready ? missingMsds.length + '개사' : '—';
-  document.getElementById('fieldLicenseCount').textContent = ready ? missingLicense.length + '개사' : '—';
-  if (!ready) {
-    list.textContent = '서류 현황 조회 대기';
-    return;
-  }
-  const pending = contractors.filter(c => !received.has(c.name) || !licensed.has(c.id));
-  if (!pending.length) {
-    list.textContent = contractors.length ? '모든 협력사의 서류가 접수되었습니다.' : '등록된 협력사가 없습니다.';
-    return;
-  }
-  list.innerHTML = pending.slice(0, 4).map(c => {
-    const missing = [!received.has(c.name) && 'MSDS 미수령', !licensed.has(c.id) && '등록증 미제출'].filter(Boolean);
-    return `<div class="field-company"><button type="button" class="field-company-link" data-field-company="${escapeHtml(c.id)}">${escapeHtml(c.name)}</button><span>${missing.join(' · ')}</span></div>`;
-  }).join('');
-}
-
 function renderGsHome() {
   pmxPanel.render();
   pmxPanel.applyLatest();
-  renderFieldInbox();
+  const name =
+    profile?.name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    '관리자';
+  document.getElementById('gsGreeting').textContent =
+    `${name}님,\n오늘 하루도 좋은 하루 되세요!`;
+  document.getElementById('gsSiteName').textContent =
+    currentWS?.name || '현장 홈';
   document.getElementById('gsPreviewLabel').textContent = getDevPreviewPage()
     ? '미리보기 · 예시 데이터'
     : '';

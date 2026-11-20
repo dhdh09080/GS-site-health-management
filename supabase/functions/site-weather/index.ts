@@ -1,5 +1,6 @@
 import { numeric } from './lib/forecast.js';
 import { siteObservations } from './observations.ts';
+import { currentAdvisories } from './kma-public.ts';
 import { detailedForecast } from './detailed.ts';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
@@ -128,6 +129,10 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST 요청만 지원합니다.' }, 405);
   try {
     const body = await req.json();
+    if (body?.action === 'advisories') {
+      try { return json({ result: await currentAdvisories() }); }
+      catch (error) { return json({ error: error instanceof Error ? error.message : '기상청 특보 조회 실패', code: 'KMA_ADVISORIES_UNAVAILABLE' }, 503); }
+    }
     const action = ['geocode', 'detailed', 'observations'].includes(body?.action) ? body.action : 'forecast';
     const address = String(body?.address || '').trim();
     let latitude = validCoordinate(body?.latitude, -90, 90);

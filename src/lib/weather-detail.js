@@ -71,6 +71,22 @@ function renderSelected() {
     <div class="wx-detail-table" tabindex="0" role="region" aria-label="시간별 상세 예보, 좌우로 스크롤"><table><caption class="wx-detail-note">시간별 예보 · — 표시는 미제공 · 풍속은 바람의 속도입니다.</caption><thead><tr>${['시간','날씨','기온','체감온도¹','습도','강수확률','시간당 강수량','풍속','풍향','출처'].map(s => `<th scope="col">${s}</th>`).join('')}</tr></thead><tbody>${hours.map(h => `<tr><th scope="row">${h.hour}시</th><td>${escape(label(h.code))}</td><td>${value(h.temp,'°C')}</td><td>${value(h.feel,'°C')}</td><td>${value(h.humidity,'%')}</td><td>${value(h.pop,'%')}</td><td>${typeof h.precipitation === 'number' ? value(h.precipitation,' mm') : escape(h.precipitation ?? '—')}</td><td>${value(h.wind,' m/s')}</td><td>${value(h.direction,'°')}</td><td>${escape(h.source)}</td></tr>`).join('')}</tbody></table></div><p class="wx-detail-note">¹ 체감온도: Open-Meteo 모델 값으로 기상청 예보 기온과 차이가 있을 수 있습니다. 일별 최저·최고 및 최대치는 제공된 시간대 기준입니다.</p>`;
 }
 
+function observationSummary({ grid, observations }) {
+  if (grid) {
+    const metrics = [
+      ['기온', value(grid.temp, '°C')], ['습도', value(grid.humidity, '%')],
+      ['풍속', value(grid.wind, ' m/s')], ['최근 1시간 강수량', value(grid.rain60m, ' mm')],
+    ];
+    const time = new Date(grid.observedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+    return `<article class="wx-observation-card"><h3>기상청 초단기실황 · 현장 격자</h3>
+      <p>현장 좌표가 속한 격자의 실황입니다.</p><p>관측 ${escape(time)} (한국 시간)</p>
+      <dl class="wx-observation-values">${metrics.map(([label, reading]) =>
+        `<div><dt>${label}</dt><dd>${reading}</dd></div>`).join('')}</dl></article>`;
+  }
+  if (observations.length) return '<p class="wx-detail-note">— 표시는 미제공 또는 결측값입니다. AWS·ASOS의 관측 주기와 풍속 집계 기준이 달라 수치에 차이가 있을 수 있습니다.</p>';
+  return '<p class="wx-detail-message">현재 표시할 관측자료가 없습니다. <button type="button" class="btn btn-outline" onclick="loadWeatherPage(true)">다시 조회</button></p>';
+}
+
 let observationRequest = 0;
 export async function loadWeatherObservations({ workspace, invoke, preview }) {
   const token = ++observationRequest;
@@ -94,9 +110,33 @@ export async function loadWeatherObservations({ workspace, invoke, preview }) {
         [o.source.includes('AWS') ? '최대 순간풍속' : '돌풍속',value(o.gust,' m/s')],['풍향',value(o.direction,'°')],
         ['최근 60분 강수량',value(o.rain60m,' mm')],['일 누적 강수량',value(o.rainDay,' mm')],
       ].map(([k,v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></article>`).join('')}</div>` +
-      (result.observations.length ? '<p class="wx-detail-note">— 표시는 미제공 또는 결측값입니다. AWS·ASOS의 관측 주기와 풍속 집계 기준이 달라 수치에 차이가 있을 수 있습니다.</p>' : '<p class="wx-detail-message">현재 표시할 관측자료가 없습니다. 상세 예보는 아래에서 확인할 수 있습니다.</p>');
+      observationSummary(result);
   } catch (e) {
     if (token !== observationRequest) return;
     root.innerHTML = `<div class="wx-detail-message" role="alert">${escape(e.message)}<br><button type="button" class="btn btn-outline btn-sm" onclick="loadWeatherPage(true)">다시 시도</button></div>`;
+  }
+}
+
+let advisoryRequest = 0;
+export async function loadWeatherAdvisories({ invoke, preview }) {
+  const request = ++advisoryRequest;
+  const root = document.getElementById('wxAdvisoryBody');
+  root.textContent = '기상청 특보현황을 조회하고 있습니다…';
+  if (preview) { root.textContent = '미리보기에서는 실시간 기상특보를 조회하지 않습니다.'; return; }
+  try {
+    const { result } = await invoke('site-weather', { action: 'advisories' });
+    if (request !== advisoryRequest) return;
+    const report = result?.report;
+    if (!report?.active || !Number.isFinite(Date.parse(report.issuedAt)) || !Number.isFinite(Date.parse(result.checkedAt))) {
+      throw new Error('기상청 특보현황을 확인하지 못했습니다.');
+    }
+    const time = stamp => new Date(stamp).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'});
+    root.innerHTML = `<p class="wx-detail-note">기상청 발표 ${escape(time(report.issuedAt))} · 조회 ${escape(time(result.checkedAt))} (한국 시간)</p>
+      <h3>발효 특보</h3><p class="wx-advisory-text">${escape(report.active)}</p>
+      ${report.preliminary ? `<h3>예비특보</h3><p class="wx-advisory-text">${escape(report.preliminary)}</p>` : ''}`;
+  } catch (error) {
+    if (request !== advisoryRequest) return;
+    root.innerHTML = `<div class="wx-detail-message" role="alert">특보 조회 실패 · ${escape(error.message)}
+      <button type="button" class="btn btn-outline" onclick="loadWeatherPage(true)">다시 조회</button></div>`;
   }
 }

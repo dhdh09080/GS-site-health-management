@@ -65,8 +65,9 @@ async def main():
     assert (await page.locator('.gs-shortcuts').bounding_box())['y']<250
     assert await page.locator('#mobileHomeWeather').get_attribute('open') is None
     await page.evaluate("showPage('contractors')")
-    assert (await page.locator('#conMgrList').bounding_box())['y']<650
-    assert await page.locator('#siteDirectoryCard').is_hidden()
+    assert (await page.locator('#siteDirectoryCard').bounding_box())['y'] < 350
+    assert await page.locator('#siteDirectoryCard').evaluate('e => e.parentElement.firstElementChild === e')
+    assert await page.locator('#siteDirectoryCard').is_visible()
     await page.locator('#mobileDirectoryShortcut').click()
     assert await page.locator('#siteDirectoryCard').is_visible()
    await page.goto(BASE+'/?preview=warning');await page.locator('#warnPickList .warn-check').first.wait_for()

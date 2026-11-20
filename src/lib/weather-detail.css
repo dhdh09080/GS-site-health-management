@@ -45,3 +45,10 @@
 .wx-weather-alert {flex:1;min-width:220px;padding:10px 13px;border-left:3px solid var(--alert-color);background:var(--alert-background);color:var(--alert-color);line-height:1.7;font-size:12px}
 .wx-weather-alert>b,.wx-weather-alert>span {display:block}.wx-weather-alert>b {font-size:14px}.wx-alert-value {display:inline-block;padding:3px 7px;background:var(--alert-background);color:var(--alert-color);font-weight:750;border-bottom:2px solid var(--alert-color)}
 @media print {.wx-weather-alert,.wx-alert-value {-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+.wx-advisory-text { white-space: pre-line; overflow-wrap: anywhere; line-height: 1.65; margin: .5rem 0 1rem; }
+
+@media (max-width: 600px) {
+  .wx-view-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .wx-view-tabs [role=tab] { min-height: 44px; padding: 6px; font-size: 14px; white-space: normal; }
+}

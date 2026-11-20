@@ -1,3 +1,4 @@
+import { gridObservation } from './kma-public.ts';
 import { distanceKm, parseObservation, parseStations, tableRows } from './lib/observations.js';
 
 type Kind = 'AWS' | 'ASOS';
@@ -82,7 +83,7 @@ const messages: Record<string, string> = {
   HUB_NO_OBSERVATIONS: '주변 관측소의 관측자료가 아직 제공되지 않습니다.',
   HUB_UNAVAILABLE: '기상청 API허브 연결이 지연되고 있습니다.',
 };
-export async function siteObservations(latitude: number, longitude: number) {
+async function stationObservations(latitude: number, longitude: number) {
   const key = Deno.env.get('KMA_APIHUB_KEY')?.trim();
   if (!key) return { observations: [], warnings: ['기상청 API허브 키 미설정 · 관측자료를 표시할 수 없습니다.'] };
   const kinds: Kind[] = ['AWS', 'ASOS'];
@@ -92,4 +93,15 @@ export async function siteObservations(latitude: number, longitude: number) {
     warnings: results.flatMap((r,i) => r.status === 'rejected' ? [`${kinds[i]}: ${messages[r.reason?.code] || messages.HUB_UNAVAILABLE}`] : []),
     retrievedAt: new Date().toISOString(),
   };
+}
+
+export async function siteObservations(latitude: number, longitude: number) {
+  const result = await stationObservations(latitude, longitude);
+  if (result.observations.length) return result;
+  try {
+    const grid = await gridObservation(latitude, longitude);
+    return { ...result, grid };
+  } catch (error) {
+    return { ...result, warnings: [...result.warnings, '현장 격자 실황 조회 실패 · ' + (error instanceof Error ? error.message : '다시 조회해주세요.')] };
+  }
 }
