@@ -1,4 +1,4 @@
-# MSDS-APP
+# GS-site-health-management
 
 ## 모바일 사용성 개선 9개 항목 반영 (2026-11-12)
 
