@@ -461,6 +461,8 @@ and preliminary warnings as supplied by KMA. Empty or failed responses offer a r
 
 The poster matches the active bulletin to the saved Korean site address. It recognises explicit province or municipality names and Seoul’s four KMA warning districts. Where the address cannot resolve a qualified area (such as a mountain zone), the poster directs readers to the official bulletin. The timestamp is the KMA publication time. Mobile, print and PNG use the same match.
 
+[현장별 포스터 자동 발송 설정 및 운영 설치 안내](docs/poster-delivery.md)
+
 ### Seasonal health posters and weather views
 
 Weather opens a six-tab workspace: health poster, hourly chart, detailed

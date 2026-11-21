@@ -1,3 +1,4 @@
+import { mountPosterDelivery } from './lib/poster-delivery.js';
 import { siteAdvisory, posterNotice } from './lib/poster-advisories.js';
 import { contractorTableHtml, installContractorEditor } from './lib/contractor-manager.js';
 import {msdsStatusSwitch} from './lib/msds-status-switch.js';
@@ -149,6 +150,10 @@ let announcements = [],
 let announcementsLoadedAt = 0,
   announcementsWorkspaceId = null;
 
+const posterDelivery = mountPosterDelivery({
+  workspace:()=>currentWS, admin:()=>canManageTeam(),
+  session:async()=>(await supabase.auth.getSession()).data.session?.access_token
+});
 const partnerPanel = createPartnerPanel({client:supabase,getWorkspace:()=>currentWS,getUser:()=>user,canManage:()=>canManageTeam(),toast,onUpdate:async()=>{await Promise.all([loadContractors(),loadWorkTypes(),loadMsdsRecords()]);renderContractorTags();}});
 const contractorEditor = installContractorEditor({
   client: supabase, getWorkspace: () => currentWS, getContractors: () => contractors,
@@ -956,6 +961,7 @@ function translateAuthError(m) {
 // Workspace
 // ═══════════════════════════════════════════════
 function resetWorkspaceScopedState() {
+  posterDelivery.reset();
   hazardMap.reset();
   contractorListOrigin = null;
   document.getElementById('msdsReturn').hidden = true;

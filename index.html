@@ -1104,6 +1104,21 @@
                   </button>
 </div>
 <div class="wx-season-control"><label for="wxSeasonMode">건강관리 주제</label><select id="wxSeasonMode" onchange="setWxSeasonMode(this.value)"><option value="auto">계절·날씨에 맞게 자동</option><option value="summer">혹서기 건강관리</option><option value="transition">환절기 건강관리</option><option value="winter">동절기 건강관리</option></select><label for="wxPosterLanguage">포스터 언어</label><select id="wxPosterLanguage" onchange="setWxPosterLanguage(this.value)"><option value="ko">한국어</option><option value="zh">中文 · 중국어</option><option value="my">မြန်မာ · 미얀마어</option><option value="ru">Русский · 러시아어</option></select><span>안내 문구는 매일 바뀝니다.</span></div>
+<details id="posterDelivery" class="wx-delivery">
+<summary>포스터 자동 발송 설정</summary>
+<label>수신 채널 <select class="form-input" data-delivery="channel"><option value="telegram" data-delivery="telegram">텔레그램 · 현장 공용</option><option value="kakao">카카오톡 · 나와의 채팅</option></select></label>
+<button type="button" class="btn btn-outline" data-action="state" data-delivery="refresh">연결 상태 새로고침</button>
+<p data-delivery="status"></p>
+<fieldset data-delivery="controls"><div data-delivery="form" hidden>
+<p data-delivery="hint"></p><button class="btn btn-outline" type="button" data-delivery="connect" data-action="connect">연결 시작</button>
+<div class="wx-delivery-actions" data-delivery="links"></div><button type="button" class="btn btn-outline" data-action="confirm" data-delivery="confirm" hidden>수신처 확인</button>
+<label><input type="checkbox" data-delivery="enabled"> 자동 발송 사용</label>
+<label>발송 시각 (한국시간) <input type="time" class="form-input" data-delivery="time" required></label>
+<fieldset><legend>발송 요일</legend><div data-delivery="days" class="wx-delivery-days"></div></fieldset>
+<div class="wx-delivery-actions"><button type="button" class="btn btn-primary" data-action="save" data-delivery="save">발송 설정 저장</button>
+<button type="button" class="btn btn-outline" data-action="test" data-delivery="test">테스트 이미지 보내기</button>
+<button type="button" class="btn btn-outline" data-action="disconnect" data-delivery="disconnect">연결 해제</button></div>
+<p data-delivery="last"></p></div></fieldset><p role="status" data-delivery="feedback"></p></details>
 <div id="wxLatestPoster" style="text-align: center">
 <div class="mp-empty">불러오는 중...</div>
 </div>

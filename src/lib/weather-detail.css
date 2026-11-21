@@ -56,3 +56,19 @@
 .wx-mobile-health .wx-poster-alert {margin:14px 0;padding:12px 14px;background:#fff1d2;border-left:5px solid #cd810d;color:#503715}
 .wx-mobile-health .wx-poster-alert h4 {margin:4px 0;color:#864200;font-size:21px}
 .wx-mobile-health .wx-poster-alert p {margin:8px 0 0;line-height:1.5;font-weight:650}
+
+.wx-delivery {padding:14px 16px;margin:12px 0 20px;border:1px solid var(--border);border-radius:8px;text-align:left}
+.wx-delivery summary {font-weight:650;cursor:pointer}
+.wx-delivery fieldset {min-width:0;border:0;padding:0;margin:12px 0}
+.wx-delivery label {display:inline-flex;align-items:center;gap:8px;margin:8px 10px 8px 0}
+.wx-delivery .form-input {width:auto;max-width:100%}
+.wx-delivery p {line-height:1.6;overflow-wrap:anywhere}
+.wx-delivery p:empty {display:none}
+.wx-delivery-actions,.wx-delivery-days {display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.wx-delivery-days label {min-height:40px;margin:0 6px 0 0}
+.wx-delivery [role=status] {color:#385447}
+
+@media(max-width:600px) {
+  .wx-delivery>label,.wx-delivery [data-delivery=form]>label:has(input[type=time]) {display:grid;gap:4px}
+  .wx-delivery .form-input {width:100%}
+}

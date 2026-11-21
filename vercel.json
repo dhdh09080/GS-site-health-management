@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/poster-delivery.js": {
+      "includeFiles": "server/poster/PosterSans.otf",
+      "maxDuration": 60
+    }
+  }
+}
