@@ -4429,9 +4429,9 @@ details > summary::-webkit-details-marker {
 }
 
 .site-coordinate-result.found {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  border-color: var(--accent-blue-border);
+  background: var(--accent-blue-light);
+  color: var(--accent-blue-dark);
 }
 
 .site-coordinate-dot {
@@ -4443,7 +4443,7 @@ details > summary::-webkit-details-marker {
 }
 
 .site-coordinate-result.found .site-coordinate-dot {
-  background: #22c55e;
+  background: var(--accent-blue);
 }
 
 .contractor-stat-card {
@@ -4539,9 +4539,9 @@ details > summary::-webkit-details-marker {
 }
 
 .contractor-badge.ok {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #15803d;
+  border-color: var(--accent-blue-border);
+  background: var(--accent-blue-light);
+  color: var(--accent-blue-dark);
 }
 
 .contractor-badge.danger {

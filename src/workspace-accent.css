@@ -1,0 +1,16 @@
+/* Blue accents on light surfaces. The darker blue is for text and filled controls. */
+:root {
+  --accent-blue: #0066cc;
+  --accent-blue-focus: #007aff;
+  --accent-blue-dark: #004d99;
+  --accent-blue-light: #ebf4ff;
+  --accent-blue-border: #8cbcf0;
+}
+
+#page-weather, #page-contractors, .directory-page, .contractor-workspace,
+body:has(:is(#page-weather, #page-contractors).active) .toast-wrap {
+  --ok: var(--accent-blue);
+  --ok-dark: var(--accent-blue-dark);
+  --ok-light: var(--accent-blue-light);
+  accent-color: var(--accent-blue);
+}

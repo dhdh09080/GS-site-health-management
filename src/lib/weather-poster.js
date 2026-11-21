@@ -70,7 +70,7 @@ export function posterModel(fc, mode = 'auto') {
   }
   const themes = {
     summer: { title:'혹서기 건강관리', accent:'#b84b20', pale:'#fff0e6', note:'더위가 쌓이기 전에, 물 · 그늘 · 휴식', action:'시원한 물과 쉴 그늘부터 챙겨두세요.' },
-    transition: { title:'환절기 건강관리', accent:'#236559', pale:'#e9f4ee', note:'아침과 낮의 변화에, 옷차림 · 준비운동 · 위생', action:'아침과 낮이 달라요. 벗고 입기 편한 옷을 챙기세요.' },
+    transition: { title:'환절기 건강관리', accent:'#0066cc', pale:'#ebf4ff', note:'아침과 낮의 변화에, 옷차림 · 준비운동 · 위생', action:'아침과 낮이 달라요. 벗고 입기 편한 옷을 챙기세요.' },
     winter: { title:'동절기 건강관리', accent:'#245a91', pale:'#eaf2fb', note:'추위와 바람에 대비하는, 보온 · 따뜻한 휴식', action:'마른 장갑과 양말, 따뜻하게 쉴 곳부터 챙기세요.' },
   };
   const day = Math.floor(Date.parse(date+'T00:00:00Z') / 86400000);
@@ -86,7 +86,7 @@ export function posterModel(fc, mode = 'auto') {
 }
 
 // Separate temperature and wind scales. Missing values break the line instead of becoming zero.
-export function weatherChartSvg(hours, {width=1328,height=300,left=100,right=24,colors=['#3265b4','#c46132','#a4adb3'],fontScale=1,lang='ko'} = {}) {
+export function weatherChartSvg(hours, {width=1328,height=300,left=100,right=24,colors=['#0066cc','#c46132','#a4adb3'],fontScale=1,lang='ko'} = {}) {
   const l=posterLocale(lang);
   const top=22,bottom=42,windHeight=62,gap=36;
   const tempBottom=height-bottom-windHeight-gap;
@@ -153,7 +153,7 @@ export function buildHealthPosterSvg(fc, site = {}, mode='auto', lang='ko', opti
   const siteName=String(site.name||l.site);
 
   const m=posterModel(fc,mode);
-  const accent=m.season==='winter'?'#285caa':m.season==='summer'?'#d94b25':'#ce512a';
+  const accent=m.season==='winter'?'#285caa':m.season==='summer'?'#d94b25':m.accent;
   const dateTitle=posterDateTitle(m.date,l.lang);
   const dateLabel=posterDateLabel(m.date,l.lang);
   const coldAlert=metricAlert('temp',m.low), heatAlert=metricAlert('feel',m.maxFeel), windAlert=metricAlert('wind',m.maxWind);
