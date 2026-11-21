@@ -4,7 +4,7 @@ import { Problem, required, vault, hash, equalSecret, schedule, kakaoToken, deli
 import { access, subscription, update, publicState, dispatcher } from '../server/poster/repository.js';
 
 import {data as storage} from '../server/poster/data.js';
-import {registerWebhook} from '../server/poster/telegram.js';
+import {registerWebhook,WebhookError} from '../server/poster/telegram.js';
 
 const uuid=v=>typeof v==='string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(v);
 const expires=()=>new Date(Date.now()+10*60000).toISOString();
@@ -138,6 +138,6 @@ export default async function handler(req,res) {
     } else throw new Problem('지원하지 않는 설정입니다.');
     return res.json({ok:true});
   } catch(e) {
-    return res.status(e instanceof Problem?e.status:503).json({error:e instanceof Problem?e.message:'발송 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.'});
+    return res.status(e instanceof Problem?e.status:503).json({error:e instanceof Problem || e instanceof WebhookError?e.message:'발송 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.'});
   }
 }
