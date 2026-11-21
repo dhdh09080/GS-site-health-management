@@ -109,8 +109,10 @@ test('production storage uses a fixed operation with a server credential and fai
   await assert.rejects(data(db,'ready'),e=>e.status===503);
 });
 test('webhook registration verifies the provider and preserves an existing different destination',async()=>{
-  const {registerWebhook}=await import('../server/poster/telegram.js');
-  const env={TELEGRAM_BOT_TOKEN:'fixture',TELEGRAM_WEBHOOK_SECRET:'test',POSTER_SITE_ORIGIN:'https://example.test'};
+  const {registerWebhook,botToken}=await import('../server/poster/telegram.js');
+  assert.equal(botToken('  "123:fixture"\n'),'123:fixture');
+  assert.equal(botToken('https://api.telegram.org/bot123:fixture'),'123:fixture');
+  const env={TELEGRAM_BOT_TOKEN:'123:fixture',TELEGRAM_WEBHOOK_SECRET:'test',POSTER_SITE_ORIGIN:'https://example.test'};
   let destination='https://other.test/callback',setCount=0;
   const telegram=async(url,opts)=>{
     const method=url.split('/').pop();

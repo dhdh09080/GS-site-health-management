@@ -4,7 +4,7 @@ import { Problem, required, vault, hash, equalSecret, schedule, kakaoToken, deli
 import { access, subscription, update, publicState, dispatcher } from '../server/poster/repository.js';
 
 import {data as storage} from '../server/poster/data.js';
-import {registerWebhook,WebhookError} from '../server/poster/telegram.js';
+import {registerWebhook,WebhookError,botToken} from '../server/poster/telegram.js';
 
 const uuid=v=>typeof v==='string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(v);
 const expires=()=>new Date(Date.now()+10*60000).toISOString();
@@ -119,7 +119,7 @@ export default async function handler(req,res) {
       if(channel==='kakao') {
         url=origin()+endpoint+'?action=kakao-start&ticket='+nonce;
       } else {
-        const response=await fetch('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/getMe',{signal:AbortSignal.timeout(8000)});
+        const response=await fetch('https://api.telegram.org/bot'+botToken(env.TELEGRAM_BOT_TOKEN)+'/getMe',{signal:AbortSignal.timeout(8000)});
         const name=(await response.json()).result?.username;
         if(!response.ok || !/^\w+$/.test(name||'')) throw new Problem('운영자의 텔레그램 봇 설정을 확인해주세요.');
         url='https://t.me/'+name+'?startgroup='+nonce;

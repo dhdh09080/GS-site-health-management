@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Problem, required, vault, weatherPoster, kakaoToken, sendMessage } from './service.js';
 
 import {data} from './data.js';
+import {botToken} from './telegram.js';
 
 export async function access(db,workspaceId,userId) {
   const site=await data(db,'site',{workspace:workspaceId});
@@ -39,7 +40,7 @@ export function dispatcher(db,env,origin,http=fetch) {
         return data.result;
       });
       const store=vault(env.POSTER_ENCRYPTION_KEY),target=store.open(row.destination,row.id);
-      if(row.channel==='telegram') return {channel:row.channel,png,siteName:site.name,target,token:required(env.TELEGRAM_BOT_TOKEN,'텔레그램 봇 설정을 확인해주세요.')};
+      if(row.channel==='telegram') return {channel:row.channel,png,siteName:site.name,target,token:required(botToken(env.TELEGRAM_BOT_TOKEN),'텔레그램 봇 설정을 확인해주세요.')};
       const tokens=await kakaoToken({grant_type:'refresh_token',refresh_token:target},env,http);
       if(tokens.refresh_token) await update(db,row,{destination:store.seal(tokens.refresh_token,row.id)},false);
       const image=await data(db,'saveImage',{id:row.id,png:png.toString('base64')});

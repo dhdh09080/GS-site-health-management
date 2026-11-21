@@ -1,9 +1,18 @@
 // Register only the dedicated bot selected by its server-side token.
 export class WebhookError extends Error {}
 
+// Accept common copy/paste wrappers without retaining or logging the original value.
+export function botToken(raw='') {
+  let token=raw.trim();
+  if(token.length>1 && ['"',"'"].includes(token[0]) && token.at(-1)===token[0]) token=token.slice(1,-1).trim();
+  return token.replace(/^https:\/\/api\.telegram\.org\/bot(?=\d+:)/,'').replace(/^bot(?=\d+:)/,'');
+}
+
 export async function registerWebhook(env,http=fetch) {
-  const {TELEGRAM_BOT_TOKEN: token, TELEGRAM_WEBHOOK_SECRET: secret, POSTER_SITE_ORIGIN: origin}=env;
+  const {TELEGRAM_WEBHOOK_SECRET: secret, POSTER_SITE_ORIGIN: origin}=env;
+  const token=botToken(env.TELEGRAM_BOT_TOKEN);
   if(!token || !/^[a-zA-Z0-9_-]{1,256}$/.test(secret||'') || !origin?.startsWith('https://')) throw new WebhookError('봇 토큰·웹훅 인증값·HTTPS 운영 주소를 환경변수에 설정해주세요.');
+  if(!/^\d+:[A-Za-z0-9_-]+$/.test(token)) throw new WebhookError('봇 토큰 형식이 맞지 않습니다. 숫자, 콜론, 뒤쪽 문자열까지 BotFather에서 한 줄 전체를 복사해주세요.');
   const url=new URL('/api/poster-delivery?action=telegram-hook',origin).href;
   async function telegram(method,body={}) {
     const res=await http('https://api.telegram.org/bot'+token+'/'+method,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)}).catch(()=>null);
