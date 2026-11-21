@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
 import { Problem, required, vault, hash, equalSecret, schedule, kakaoToken, deliver } from '../server/poster/service.js';
-import { read, access, subscription, update, publicState, dispatcher } from '../server/poster/repository.js';
+import { access, subscription, update, publicState, dispatcher } from '../server/poster/repository.js';
+
+import {data as storage} from '../server/poster/data.js';
+import {registerWebhook} from '../server/poster/telegram.js';
 
 const uuid=v=>typeof v==='string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(v);
 const expires=()=>new Date(Date.now()+10*60000).toISOString();
@@ -17,19 +20,16 @@ async function telegramHook(db,req) {
   const m=req.body?.message;
   const code=m?.text?.match(/^\/start(?:@[\w]+)? ([\w-]{32})$/)?.[1];
   if(!code || !['private','group','supergroup'].includes(m.chat?.type) || !Number.isSafeInteger(m.chat.id) || m.from?.is_bot) return;
-  const row=await read(db.from('poster_subscriptions').select('id,revision').eq('channel','telegram')
-    .eq('binding_hash',hash(code)).gt('binding_until',new Date().toISOString()).maybeSingle());
+  const row=await storage(db,'findBinding',{channel:'telegram',code:hash(code),now:new Date().toISOString()});
   if(!row) return;
   const label=String(m.chat.title || m.chat.first_name || '개인 채팅').slice(0,100)+' (…'+String(m.chat.id).slice(-4)+')';
-  await read(db.from('poster_subscriptions').update({binding_hash:null,candidate:vault(env.POSTER_ENCRYPTION_KEY).seal(String(m.chat.id),row.id),candidate_label:label})
-    .eq('id',row.id).eq('binding_hash',hash(code)).eq('revision',row.revision));
+  await storage(db,'telegramCandidate',{id:row.id,code:hash(code),revision:row.revision,candidate:vault(env.POSTER_ENCRYPTION_KEY).seal(String(m.chat.id),row.id),label});
 }
 async function kakaoStart(db,req,res) {
   const ticket=req.query.ticket;
   if(typeof ticket!=='string' || !/^[\w-]{32}$/.test(ticket)) throw new Problem('연결 링크를 다시 발급해주세요.');
   const nonce=randomBytes(24).toString('base64url');
-  const row=await read(db.from('poster_subscriptions').update({binding_hash:hash(nonce)}).eq('channel','kakao')
-    .eq('binding_hash',hash(ticket)).gt('binding_until',new Date().toISOString()).select('id').maybeSingle());
+  const row=await storage(db,'kakaoNonce',{code:hash(ticket),next:hash(nonce),now:new Date().toISOString()});
   if(!row) throw new Problem('이미 사용했거나 만료된 연결 링크입니다.');
   // Start on the canonical domain so the callback cookie also works when the site was opened via an alias.
   res.setHeader('Set-Cookie',cookie+'='+nonce+'; Max-Age=600; Path='+endpoint+'; HttpOnly; Secure; SameSite=Lax');
@@ -43,7 +43,7 @@ async function kakaoCallback(db,req,res) {
   const proof=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(cookie+'='))?.slice(cookie.length+1);
   res.setHeader('Set-Cookie',cookie+'=; Max-Age=0; Path='+endpoint+'; HttpOnly; Secure; SameSite=Lax');
   if(!equalSecret(state,proof) || !req.query.code) throw new Problem('카카오 연결이 취소되거나 만료됐습니다. 사이트에서 다시 연결해주세요.');
-  const row=await read(db.from('poster_subscriptions').select('*').eq('channel','kakao').eq('binding_hash',hash(state)).gt('binding_until',new Date().toISOString()).maybeSingle());
+  const row=await storage(db,'findBinding',{channel:'kakao',code:hash(state),now:new Date().toISOString()});
   if(!row) throw new Problem('연결 시간이 만료됐습니다.');
   await access(db,row.workspace_id,row.user_id);
   const tokens=await kakaoToken({grant_type:'authorization_code',code:req.query.code,redirect_uri:origin()+endpoint+'?action=kakao-return'},env);
@@ -62,10 +62,16 @@ export default async function handler(req,res) {
   try {
     const action=req.query.action||'state';
     if(req.method!==(['image','kakao-start','kakao-return'].includes(action)?'GET':'POST')) throw new Problem('지원하지 않는 요청입니다.',405);
-    const db=createClient(required(env.SUPABASE_URL||env.VITE_SUPABASE_URL,'현장 연결 설정이 필요합니다.'),required(env.SUPABASE_SERVICE_ROLE_KEY,'운영자의 자동 발송 서버 설정이 필요합니다.'),{auth:{persistSession:false,autoRefreshToken:false}});
+    if(action==='setup-telegram') {
+      if(!equalSecret(req.headers.authorization?.replace(/^Bearer /,''),env.POSTER_CRON_SECRET)) throw new Problem('인증이 필요합니다.',403);
+      const username=await registerWebhook(env);
+      return res.json({connected:true,username});
+    }
+    const clientKey=env.POSTER_STORAGE_KEY?env.VITE_SUPABASE_ANON_KEY:env.SUPABASE_SERVICE_ROLE_KEY;
+    const db=createClient(required(env.SUPABASE_URL||env.VITE_SUPABASE_URL,'현장 연결 설정이 필요합니다.'),required(clientKey,'운영자의 자동 발송 서버 설정이 필요합니다.'),{auth:{persistSession:false,autoRefreshToken:false}});
     if(action==='image') {
       if(!uuid(req.query.id)) throw new Problem('이미지가 없습니다.',404);
-      const img=await read(db.from('poster_message_images').select('png').eq('id',req.query.id).gt('expires_at',new Date().toISOString()).maybeSingle());
+      const img=await storage(db,'getImage',{id:req.query.id,now:new Date().toISOString()});
       if(!img) throw new Problem('이미지가 만료됐습니다.',404);
       res.setHeader('Content-Type','image/png');return res.status(200).send(Buffer.from(img.png,'base64'));
     }
@@ -78,7 +84,7 @@ export default async function handler(req,res) {
       const deadline=Date.now()+20000;
       let processed=0;
       do {
-        const jobs=await read(db.rpc('claim_poster_deliveries',{}));
+        const jobs=await storage(db,'claim');
         if(!jobs.length) break;
         await Promise.all(jobs.map(job=>deliver(job,io)));
         processed+=jobs.length;
@@ -94,7 +100,7 @@ export default async function handler(req,res) {
     const {admin}=await access(db,workspace,user);
     if(channel==='telegram' && !admin) throw new Problem('현장 관리자만 단체 발송을 설정할 수 있습니다.',403);
     const row=await subscription(db,workspace,channel,user,action==='connect');
-    const schedulerReady=async()=>!!env.POSTER_CRON_SECRET && await read(db.rpc('poster_scheduler_ready',{}));
+    const schedulerReady=async()=>!!env.POSTER_CRON_SECRET && await storage(db,'ready');
     if(action==='state') return res.json({...await publicState(db,row),configured:configured(channel),schedulerReady:await schedulerReady()});
     if(!row) throw new Problem('수신처를 먼저 연결해주세요.');
     if(req.body.revision!==row.revision && !(action==='connect' && req.body.revision===null && !row.destination && !row.binding_hash))
@@ -125,7 +131,7 @@ export default async function handler(req,res) {
       await update(db,row,{destination:row.candidate,label:row.candidate_label,candidate:null,candidate_label:null,binding_until:null,enabled:false});
     } else if(action==='test') {
       if(!row.destination) throw new Problem('수신처를 먼저 연결해주세요.');
-      const jobs=await read(db.rpc('claim_poster_deliveries',{p_test:row.id,p_expected:row.revision}));
+      const jobs=await storage(db,'claim',{id:row.id,revision:row.revision});
       if(!jobs.length) throw new Problem('이미 발송 중이거나 이번 분에 테스트했습니다. 최근 결과를 확인해주세요.',429);
       const result=await deliver(jobs[0],dispatcher(db,env,origin()));
       if(result.status!=='sent') throw new Problem(result.message,502);

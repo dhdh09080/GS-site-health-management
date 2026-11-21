@@ -16,16 +16,17 @@
 | 변수 | 용도 |
 |---|---|
 | `SUPABASE_URL` 또는 기존 `VITE_SUPABASE_URL` | 사이트가 연결된 Supabase 프로젝트 |
-| `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 DB·날씨 함수 접근 |
+| `POSTER_STORAGE_KEY` | 포스터 저장 기능 전용 32바이트 난수의 64자리 소문자 16진수 값 |
 | `POSTER_SITE_ORIGIN` | 운영 사이트의 HTTPS 주소 |
 | `POSTER_ENCRYPTION_KEY` | 32바이트 난수의 Base64 값. 교체할 때 기존 수신처를 다시 연결해야 한다. |
 | `POSTER_CRON_SECRET` | 예약 호출 인증에 사용할 별도 난수. 최소 32자 |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` | 텔레그램 사용 시 설정. 웹훅 인증값은 별도 난수로 영문자·숫자·밑줄·하이픈만 허용 |
 | `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET` | 카카오 사용 시 설정. Client Secret을 활성화한 앱은 두 값 모두 필요 |
 
-3. 텔레그램은 공식 **@BotFather**에서 **/newbot**을 실행해 전용 봇을 만든다. 봇의 그룹 참여를 허용한다. 서버 배포 후 같은 환경변수가 설정된 보안 터미널에서 `node scripts/setup-poster-telegram.mjs`를 한 번 실행한다. 등록 도구가 기존 웹훅의 대상을 확인한다. [텔레그램 봇 만들기](https://core.telegram.org/bots/tutorial#obtain-your-bot-token)
-4. 카카오 디벨로퍼스에서 앱, 카카오 로그인, **카카오톡 메시지 전송(talk_message)** 동의항목과 운영 웹 도메인을 설정한다. 카카오 로그인 리다이렉트 URI는 `https://운영도메인/api/poster-delivery?action=kakao-return`이다. 카드의 링크를 열 수 있도록 같은 도메인을 제품 링크로 등록한다. [카카오톡 나에게 보내기](https://developers.kakao.com/docs/ko/kakaotalk-message/rest-api)
-5. Supabase Vault에 `poster_dispatch_url`에는 `https://운영도메인/api/poster-delivery?action=tick`, `poster_cron_secret`에는 Vercel의 `POSTER_CRON_SECRET`과 같은 값을 저장한다. [예약 작업 설치 SQL](../supabase/site_poster_cron.sql)을 실행한다. 이 작업은 pg_cron과 pg_net을 사용한다. 설정을 배포한 뒤 전용 테스트 방에서 이미지 수신을 확인한다.
+3. [저장소 인증 함수](../supabase/site_poster_storage.sql)를 적용한다. `POSTER_STORAGE_KEY` 문자열의 SHA-256 해시(소문자 16진수)를 Supabase Vault에 `poster_storage_key_sha256` 이름으로 저장한다. `poster-storage` Edge Function을 JWT 검증을 켜고 배포한다. 운영 Vercel은 기존 공개 Supabase 키로 사용자 인증과 날씨 조회를 하고, 서버 전용 포스터 키로 지정된 저장 작업만 요청한다.
+4. 텔레그램은 공식 **@BotFather**에서 **/newbot**을 실행해 전용 봇을 만든다. 봇의 그룹 참여를 허용한다. 서버 배포 후 같은 환경변수가 설정된 보안 터미널에서 `node scripts/setup-poster-telegram.mjs`를 한 번 실행한다. 또는 서버 관리자가 예약 인증값으로 운영 API에 `POST /api/poster-delivery?action=setup-telegram`을 호출한다. 두 방법 모두 기존 웹훅의 대상을 확인하고 등록 후 텔레그램에서 주소를 다시 조회한다. [텔레그램 봇 만들기](https://core.telegram.org/bots/tutorial#obtain-your-bot-token)
+5. 카카오 디벨로퍼스에서 앱, 카카오 로그인, **카카오톡 메시지 전송(talk_message)** 동의항목과 운영 웹 도메인을 설정한다. 카카오 로그인 리다이렉트 URI는 `https://운영도메인/api/poster-delivery?action=kakao-return`이다. 카드의 링크를 열 수 있도록 같은 도메인을 제품 링크로 등록한다. [카카오톡 나에게 보내기](https://developers.kakao.com/docs/ko/kakaotalk-message/rest-api)
+6. Supabase Vault에 `poster_dispatch_url`에는 `https://운영도메인/api/poster-delivery?action=tick`, `poster_cron_secret`에는 Vercel의 `POSTER_CRON_SECRET`과 같은 값을 저장한다. [예약 작업 설치 SQL](../supabase/site_poster_cron.sql)을 실행한다. 이 작업은 pg_cron과 pg_net을 사용한다. 설정을 배포한 뒤 전용 테스트 방에서 이미지 수신을 확인한다.
 
 ## 발송 동작
 

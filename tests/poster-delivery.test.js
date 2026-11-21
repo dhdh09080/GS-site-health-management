@@ -94,3 +94,30 @@ test('API gates channel changes by current workspace role and personal recipient
  const q=calls.find(url=>url.pathname.endsWith('/poster_subscriptions')).searchParams;
  assert.equal(q.get('user_id'),'eq.'+user);assert.equal(q.get('workspace_id'),'eq.'+ws);
 });
+
+test('production storage uses a fixed operation with a server credential and fails closed',async t=>{
+  const {data}=await import('../server/poster/data.js');
+  const prior=process.env.POSTER_STORAGE_KEY;
+  process.env.POSTER_STORAGE_KEY='fixture-only';
+  t.after(()=>{if(prior===undefined) delete process.env.POSTER_STORAGE_KEY;else process.env.POSTER_STORAGE_KEY=prior;});
+  const db={functions:{invoke:async(name,{headers,body})=>{
+    assert.equal(name,'poster-storage');assert.equal(headers['x-poster-storage-key'],'fixture-only');
+    assert.deepEqual(body,{operation:'ready',args:{}});return {data:{data:false}};
+  }}};
+  assert.equal(await data(db,'ready'),false);
+  db.functions.invoke=async()=>({error:new Error('unavailable')});
+  await assert.rejects(data(db,'ready'),e=>e.status===503);
+});
+test('webhook registration verifies the provider and preserves an existing different destination',async()=>{
+  const {registerWebhook}=await import('../server/poster/telegram.js');
+  const env={TELEGRAM_BOT_TOKEN:'fixture',TELEGRAM_WEBHOOK_SECRET:'test',POSTER_SITE_ORIGIN:'https://example.test'};
+  let destination='https://other.test/callback',setCount=0;
+  const telegram=async(url,opts)=>{
+    const method=url.split('/').pop();
+    if(method==='setWebhook'){destination=JSON.parse(opts.body).url;setCount++;}
+    return Response.json({ok:true,result:method==='getMe'?{is_bot:true,username:'fixture_bot'}:method==='getWebhookInfo'?{url:destination}:true});
+  };
+  await assert.rejects(registerWebhook(env,telegram),/다른 서비스/);assert.equal(setCount,0);
+  destination='';assert.equal(await registerWebhook(env,telegram),'fixture_bot');
+  assert.equal(destination,'https://example.test/api/poster-delivery?action=telegram-hook');
+});
