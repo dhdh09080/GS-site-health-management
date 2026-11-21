@@ -29,7 +29,9 @@ export function mountPosterDelivery({workspace,admin,session}) {
       return data;
     };
     busy=true;controls.disabled=true;el('refresh').disabled=true;
-    el('feedback').textContent=action==='test'?'이미지를 생성해 보내는 중입니다…':'설정을 확인하고 있습니다…';
+    const feedback=el('feedback');
+    delete feedback.dataset.tone;
+    feedback.textContent=action==='test'?'이미지를 생성해 보내는 중입니다…':'설정을 확인하고 있습니다…';
     if(action==='state'){saved=null;form.hidden=true;el('status').textContent='';}
     try {
       let result;
@@ -63,8 +65,11 @@ export function mountPosterDelivery({workspace,admin,session}) {
         link(result.url,chosen==='telegram'?'단체방 선택하기':'카카오 로그인하기');
         if(result.privateUrl)link(result.privateUrl,'개인 채팅 선택하기');
       }
-      el('feedback').textContent=({save:'발송 설정을 저장했습니다.',test:'메신저가 이미지를 접수했습니다. 수신처에서 확인하세요.',confirm:'수신처를 연결했습니다. 발송 요일과 시간을 저장하세요.',disconnect:'연결을 해제했습니다.',connect:'아래 연결 링크는 10분 동안 유효합니다.'})[action]||'';
-    } catch(e) { if(current())el('feedback').textContent=e.message; }
+      if(['save','test','confirm','disconnect'].includes(action)) feedback.dataset.tone='success';
+      feedback.textContent=({save:'발송 설정을 저장했습니다.',test:'메신저가 이미지를 접수했습니다. 수신처에서 확인하세요.',confirm:'수신처를 연결했습니다. 발송 요일과 시간을 저장하세요.',disconnect:'연결을 해제했습니다.',connect:'아래 연결 링크는 10분 동안 유효합니다.'})[action]||'';
+    } catch(e) {
+      if(current()){feedback.dataset.tone='error';feedback.textContent=e.message;}
+    }
     finally { if(current()){busy=false;controls.disabled=false;el('refresh').disabled=false;} }
   }
   channel.onchange=()=>{el('links').replaceChildren();run('state');};

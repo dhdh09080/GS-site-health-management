@@ -86,7 +86,7 @@ export function posterModel(fc, mode = 'auto') {
 }
 
 // Separate temperature and wind scales. Missing values break the line instead of becoming zero.
-export function weatherChartSvg(hours, {width=1328,height=300,left=100,right=24,colors=['#3265b4','#c46132','#79a89d'],fontScale=1,lang='ko'} = {}) {
+export function weatherChartSvg(hours, {width=1328,height=300,left=100,right=24,colors=['#3265b4','#c46132','#a4adb3'],fontScale=1,lang='ko'} = {}) {
   const l=posterLocale(lang);
   const top=22,bottom=42,windHeight=62,gap=36;
   const tempBottom=height-bottom-windHeight-gap;
